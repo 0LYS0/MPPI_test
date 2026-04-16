@@ -85,6 +85,12 @@ header {
   cursor:pointer; transition:all .17s; text-align:center; letter-spacing:.5px;
 }
 .atab:hover { color:var(--text); background:var(--border); }
+.dtab {
+  padding:7px 2px; border-radius:4px; border:none; background:transparent;
+  color:var(--muted); font-family:var(--mono); font-size:10px; font-weight:700;
+  cursor:pointer; transition:all .17s; text-align:center; letter-spacing:.5px;
+}
+.dtab:hover { color:var(--text); background:var(--border); }
 .am { background:rgba(0,229,255,.14); color:var(--accent1); border:1px solid rgba(0,229,255,.35)!important; }
 .ad { background:rgba(57,255,154,.11); color:var(--accent2); border:1px solid rgba(57,255,154,.35)!important; }
 .ab { background:rgba(138,100,255,.14); color:#b084ff;      border:1px solid rgba(138,100,255,.35)!important; }
@@ -297,13 +303,28 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
       </div>
     </div>
     <div>
+      <div class="sec" style="color:#fb923c">Dynamics Model</div>
+      <div class="algo-tabs" id="dyn-tabs">
+        <button class="dtab" id="dyn-2nd" data-dyn="2nd" style="font-size:9px">2nd-Order</button>
+        <button class="dtab" id="dyn-1st" data-dyn="1st" style="font-size:9px">1st-Order</button>
+      </div>
+      <div id="dyn-desc" style="margin-top:7px;padding:7px 9px;border-radius:var(--r);background:var(--panel);border:1px solid var(--border);font-size:9px;color:var(--muted);line-height:1.7">
+        <strong style="color:var(--text)">2nd-Order + Damping</strong><br>
+        state = [x, y, vx, vy]<br>
+        action = acceleration [ax, ay]<br>
+        ẍ = a − drag·ẋ
+      </div>
+      <!-- Max Accel row moved to Physics section -->
+    </div>
+    <div>
       <div class="sec" style="color:#b084ff">Physics</div>
       <div class="pg">
         <div class="pr">
           <div class="ph"><span class="pn">Max Velocity</span><span class="pv" id="v-mv" style="color:#b084ff">4.0</span></div>
           <input class="ps" type="range" id="s-mv" min="0.5" max="10" value="4" step="0.5"/>
         </div>
-        <div class="pr">
+        <!-- shown only for 2nd-order -->
+        <div id="row-ma" class="pr">
           <div class="ph"><span class="pn">Max Accel</span><span class="pv" id="v-ma" style="color:#b084ff">2.0</span></div>
           <input class="ps" type="range" id="s-ma" min="0.5" max="6" value="2" step="0.5"/>
         </div>
@@ -397,7 +418,7 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
         <div class="sb"><span class="sl">Dist Goal</span><span class="sv wn" id="st-d">—</span></div>
         <div class="sb"><span class="sl">Pos X</span><span class="sv" id="st-x">—</span></div>
         <div class="sb"><span class="sl">Pos Y</span><span class="sv" id="st-y">—</span></div>
-        <div class="sb"><span class="sl">Speed</span><span class="sv" id="st-v">—</span></div>
+        <div class="sb"><span class="sl" id="lbl-v">Speed</span><span class="sv" id="st-v">—</span></div>
         <div class="sb" style="grid-column:span 2">
           <span class="sl">Speed Gauge</span>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
@@ -546,48 +567,89 @@ function rebuildSGCoeffs(){
 // ═══════════════════════════════════════════════════════
 const ENV={DT:.05,DRAG:.15,MAX_SPEED:4,MAX_ACC:2,BOUND:10,goal:[7,7],start:[-7,-7]};
 
-const DEF_OBS=[
-  {pos:[3,3],r:1.2},{pos:[5,1.5],r:1},{pos:[1.5,6],r:.9},
-  {pos:[5.5,5.5],r:1.1},{pos:[7.5,3],r:.8}
-];
-let OBS=DEF_OBS.map(o=>({pos:[...o.pos],r:o.r}));
+// ── Dynamics model selector ─────────────────────────
+// '2nd' : 2nd-order + damping  state=[x,y,vx,vy]  action=[ax,ay]
+// '1st' : 1st-order no damping state=[x,y]         action=[vx,vy]
+let dynModel = '2nd';
 
-function stepEnv(s,ax,ay){
-  let[x,y,vx,vy]=s;
-  vx+=ax*ENV.DT-ENV.DRAG*vx*ENV.DT; vy+=ay*ENV.DT-ENV.DRAG*vy*ENV.DT;
-  const sp=Math.sqrt(vx*vx+vy*vy);
-  if(sp>ENV.MAX_SPEED){vx*=ENV.MAX_SPEED/sp;vy*=ENV.MAX_SPEED/sp;}
-  x+=vx*ENV.DT;y+=vy*ENV.DT;
-  if(Math.abs(x)>ENV.BOUND){x=clip(x,-ENV.BOUND,ENV.BOUND);vx*=-.5;}
-  if(Math.abs(y)>ENV.BOUND){y=clip(y,-ENV.BOUND,ENV.BOUND);vy*=-.5;}
-  return new Float64Array([x,y,vx,vy]);
-}
+function stateDim(){ return dynModel==='1st' ? 2 : 4; }
+// action space limit: 1st-order → MAX_SPEED, 2nd-order → MAX_ACC
+function actionLim(){ return dynModel==='1st' ? ENV.MAX_SPEED : ENV.MAX_ACC; }
+function initState(){ return dynModel==='1st'
+  ? new Float64Array([ENV.start[0],ENV.start[1]])
+  : new Float64Array([ENV.start[0],ENV.start[1],0,0]); }
 
-function batchDyn(st,ac,K){
-  const nx=new Float64Array(K*4);
-  for(let k=0;k<K;k++){
-    const i4=k*4,i2=k*2;
-    let x=st[i4],y=st[i4+1],vx=st[i4+2],vy=st[i4+3];
-    let ax=clip(ac[i2],-ENV.MAX_ACC,ENV.MAX_ACC),ay=clip(ac[i2+1],-ENV.MAX_ACC,ENV.MAX_ACC);
-    vx+=ax*ENV.DT-ENV.DRAG*vx*ENV.DT; vy+=ay*ENV.DT-ENV.DRAG*vy*ENV.DT;
+// Single-agent step
+function stepEnv(s,a0,a1){
+  if(dynModel==='1st'){
+    // first-order: position += velocity * DT  (action = desired velocity)
+    const vx=clip(a0,-ENV.MAX_SPEED,ENV.MAX_SPEED);
+    const vy=clip(a1,-ENV.MAX_SPEED,ENV.MAX_SPEED);
+    let x=s[0]+vx*ENV.DT, y=s[1]+vy*ENV.DT;
+    if(Math.abs(x)>ENV.BOUND) x=clip(x,-ENV.BOUND,ENV.BOUND);
+    if(Math.abs(y)>ENV.BOUND) y=clip(y,-ENV.BOUND,ENV.BOUND);
+    return new Float64Array([x,y]);
+  } else {
+    // second-order + damping
+    let[x,y,vx,vy]=s;
+    vx+=a0*ENV.DT-ENV.DRAG*vx*ENV.DT; vy+=a1*ENV.DT-ENV.DRAG*vy*ENV.DT;
     const sp=Math.sqrt(vx*vx+vy*vy);
     if(sp>ENV.MAX_SPEED){vx*=ENV.MAX_SPEED/sp;vy*=ENV.MAX_SPEED/sp;}
-    x=clip(x+vx*ENV.DT,-ENV.BOUND,ENV.BOUND);
-    y=clip(y+vy*ENV.DT,-ENV.BOUND,ENV.BOUND);
-    nx[i4]=x;nx[i4+1]=y;nx[i4+2]=vx;nx[i4+3]=vy;
+    x+=vx*ENV.DT;y+=vy*ENV.DT;
+    if(Math.abs(x)>ENV.BOUND){x=clip(x,-ENV.BOUND,ENV.BOUND);vx*=-.5;}
+    if(Math.abs(y)>ENV.BOUND){y=clip(y,-ENV.BOUND,ENV.BOUND);vy*=-.5;}
+    return new Float64Array([x,y,vx,vy]);
   }
-  return nx;
 }
 
+// Batch dynamics — state layout depends on dynModel
+function batchDyn(st,ac,K){
+  if(dynModel==='1st'){
+    const nx=new Float64Array(K*2);
+    for(let k=0;k<K;k++){
+      const i2=k*2;
+      const vx=clip(ac[i2],  -ENV.MAX_SPEED,ENV.MAX_SPEED);
+      const vy=clip(ac[i2+1],-ENV.MAX_SPEED,ENV.MAX_SPEED);
+      nx[i2]  =clip(st[i2]  +vx*ENV.DT,-ENV.BOUND,ENV.BOUND);
+      nx[i2+1]=clip(st[i2+1]+vy*ENV.DT,-ENV.BOUND,ENV.BOUND);
+    }
+    return nx;
+  } else {
+    const nx=new Float64Array(K*4);
+    for(let k=0;k<K;k++){
+      const i4=k*4,i2=k*2;
+      let x=st[i4],y=st[i4+1],vx=st[i4+2],vy=st[i4+3];
+      let ax=clip(ac[i2],-ENV.MAX_ACC,ENV.MAX_ACC),ay=clip(ac[i2+1],-ENV.MAX_ACC,ENV.MAX_ACC);
+      vx+=ax*ENV.DT-ENV.DRAG*vx*ENV.DT; vy+=ay*ENV.DT-ENV.DRAG*vy*ENV.DT;
+      const sp=Math.sqrt(vx*vx+vy*vy);
+      if(sp>ENV.MAX_SPEED){vx*=ENV.MAX_SPEED/sp;vy*=ENV.MAX_SPEED/sp;}
+      x=clip(x+vx*ENV.DT,-ENV.BOUND,ENV.BOUND);
+      y=clip(y+vy*ENV.DT,-ENV.BOUND,ENV.BOUND);
+      nx[i4]=x;nx[i4+1]=y;nx[i4+2]=vx;nx[i4+3]=vy;
+    }
+    return nx;
+  }
+}
+
+// Cost functions — read only x,y (first two elements, same for both models)
 function rCost(st,K){
   const c=new Float64Array(K);
   const[gx,gy]=ENV.goal;
+  const stride=dynModel==='1st'?2:4;
+  const is2nd=dynModel==='2nd';
   for(let k=0;k<K;k++){
-    const x=st[k*4],y=st[k*4+1];
+    const x=st[k*stride],y=st[k*stride+1];
     c[k]=Math.sqrt((x-gx)**2+(y-gy)**2)*2;
     for(const o of OBS){
       const d=Math.sqrt((x-o.pos[0])**2+(y-o.pos[1])**2)-o.r;
       if(d<.5)c[k]+=(0.5-Math.max(d,0))*50;
+    }
+    // 2nd-order: soft penalty for approaching MAX_SPEED
+    if(is2nd){
+      const vx=st[k*stride+2],vy=st[k*stride+3];
+      const spd=Math.sqrt(vx*vx+vy*vy);
+      const excess=spd-ENV.MAX_SPEED*0.85;
+      if(excess>0) c[k]+=excess*excess*8;
     }
   }
   return c;
@@ -596,9 +658,19 @@ function rCost(st,K){
 function tCost(st,K){
   const c=new Float64Array(K);
   const[gx,gy]=ENV.goal;
-  for(let k=0;k<K;k++){const x=st[k*4],y=st[k*4+1];c[k]=Math.sqrt((x-gx)**2+(y-gy)**2)*10;}
+  const stride=dynModel==='1st'?2:4;
+  for(let k=0;k<K;k++){
+    const x=st[k*stride],y=st[k*stride+1];
+    c[k]=Math.sqrt((x-gx)**2+(y-gy)**2)*10;
+  }
   return c;
 }
+
+const DEF_OBS=[
+  {pos:[3,3],r:1.2},{pos:[5,1.5],r:1},{pos:[1.5,6],r:.9},
+  {pos:[5.5,5.5],r:1.1},{pos:[7.5,3],r:.8}
+];
+let OBS=DEF_OBS.map(o=>({pos:[...o.pos],r:o.r}));
 
 // ═══════════════════════════════════════════════════════
 // MPPI
@@ -612,12 +684,13 @@ class MPPI{
   reset(){this.U.fill(0);this.ch=[];}
   compute(s){
     const{H,K,lam,sigma,alpha}=this;
-    const gamma=lam*(1-alpha);                   // γ = λ(1−α)
-    const inv_sig2=1/(sigma*sigma);              // 1/σ²
-    const nExplore=Math.floor((1-alpha)*K);      // pure-noise 샘플 수 (Algorithm 1)
+    const gamma=lam*(1-alpha);
+    const inv_sig2=1/(sigma*sigma);
+    const nExplore=Math.floor((1-alpha)*K);
     const eps=new Float64Array(K*H*2);for(let i=0;i<eps.length;i++)eps[i]=randn()*sigma;
-    const st=new Float64Array(K*4);
-    for(let k=0;k<K;k++){st[k*4]=s[0];st[k*4+1]=s[1];st[k*4+2]=s[2];st[k*4+3]=s[3];}
+    const sd=stateDim();
+    const st=new Float64Array(K*sd);
+    for(let k=0;k<K;k++) for(let d=0;d<sd;d++) st[k*sd+d]=s[d];
     const co=new Float64Array(K),ac=new Float64Array(K*2);
     for(let t=0;t<H;t++){
       const u0=this.U[t*2],u1=this.U[t*2+1];
@@ -625,12 +698,12 @@ class MPPI{
         const e0=eps[k*H*2+t*2],e1=eps[k*H*2+t*2+1];
         if(k<nExplore){
           // Algorithm 1: k < (1-α)K → pure noise, no warm start
-          ac[k*2]=clip(e0,-ENV.MAX_ACC,ENV.MAX_ACC);
-          ac[k*2+1]=clip(e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+          ac[k*2]=clip(e0,-actionLim(),actionLim());
+          ac[k*2+1]=clip(e1,-actionLim(),actionLim());
         } else {
           // Algorithm 1: k ≥ (1-α)K → warm start (U + ε)
-          ac[k*2]=clip(u0+e0,-ENV.MAX_ACC,ENV.MAX_ACC);
-          ac[k*2+1]=clip(u1+e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+          ac[k*2]=clip(u0+e0,-actionLim(),actionLim());
+          ac[k*2+1]=clip(u1+e1,-actionLim(),actionLim());
         }
       }
       const ns=batchDyn(st,ac,K);const rc=rCost(ns,K);
@@ -651,7 +724,7 @@ class MPPI{
     for(let k=0;k<K;k++)w[k]/=(ws+1e-8);
     for(let t=0;t<H;t++){
       let d0=0,d1=0;for(let k=0;k<K;k++){d0+=w[k]*eps[k*H*2+t*2];d1+=w[k]*eps[k*H*2+t*2+1];}
-      this.U[t*2]=clip(this.U[t*2]+d0,-ENV.MAX_ACC,ENV.MAX_ACC);this.U[t*2+1]=clip(this.U[t*2+1]+d1,-ENV.MAX_ACC,ENV.MAX_ACC);
+      this.U[t*2]=clip(this.U[t*2]+d0,-actionLim(),actionLim());this.U[t*2+1]=clip(this.U[t*2+1]+d1,-actionLim(),actionLim());
     }
     let ac2=0;for(let k=0;k<K;k++)ac2+=co[k];this.ch.push(ac2/K);
     this.lW=w;this.lE=eps;
@@ -682,15 +755,16 @@ class DIAL{
   }
   compute(s){
     const{H,K,N,lam,alpha}=this;
-    const gamma=lam*(1-alpha);                   // γ = λ(1−α)
-    const nExplore=Math.floor((1-alpha)*K);      // pure-noise 샘플 수 (Algorithm 1)
+    const gamma=lam*(1-alpha);
+    const nExplore=Math.floor((1-alpha)*K);
+    const sd=stateDim();
     let aC=0,it=0,lW=null,lE=null;
     for(let i=N;i>=1;i--){
       const sig=this.sched(i);
       const eps=new Float64Array(K*H*2);
       for(let k=0;k<K;k++)for(let t=0;t<H;t++){const sv=sig[t];eps[k*H*2+t*2]=randn()*sv;eps[k*H*2+t*2+1]=randn()*sv;}
-      const st=new Float64Array(K*4);
-      for(let k=0;k<K;k++){st[k*4]=s[0];st[k*4+1]=s[1];st[k*4+2]=s[2];st[k*4+3]=s[3];}
+      const st=new Float64Array(K*sd);
+      for(let k=0;k<K;k++) for(let d=0;d<sd;d++) st[k*sd+d]=s[d];
       const co=new Float64Array(K),ac=new Float64Array(K*2);
       for(let t=0;t<H;t++){
         const u0=this.U[t*2],u1=this.U[t*2+1];
@@ -698,12 +772,12 @@ class DIAL{
           const e0=eps[k*H*2+t*2],e1=eps[k*H*2+t*2+1];
           if(k<nExplore){
             // Algorithm 1: k < (1-α)K → pure noise, no warm start
-            ac[k*2]=clip(e0,-ENV.MAX_ACC,ENV.MAX_ACC);
-            ac[k*2+1]=clip(e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+            ac[k*2]=clip(e0,-actionLim(),actionLim());
+            ac[k*2+1]=clip(e1,-actionLim(),actionLim());
           } else {
             // Algorithm 1: k ≥ (1-α)K → warm start (U + ε)
-            ac[k*2]=clip(u0+e0,-ENV.MAX_ACC,ENV.MAX_ACC);
-            ac[k*2+1]=clip(u1+e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+            ac[k*2]=clip(u0+e0,-actionLim(),actionLim());
+            ac[k*2+1]=clip(u1+e1,-actionLim(),actionLim());
           }
         }
         const ns=batchDyn(st,ac,K);const rc=rCost(ns,K);
@@ -725,7 +799,7 @@ class DIAL{
       for(let k=0;k<K;k++)w[k]/=(ws+1e-8);
       for(let t=0;t<H;t++){
         let d0=0,d1=0;for(let k=0;k<K;k++){d0+=w[k]*eps[k*H*2+t*2];d1+=w[k]*eps[k*H*2+t*2+1];}
-        this.U[t*2]=clip(this.U[t*2]+d0,-ENV.MAX_ACC,ENV.MAX_ACC);this.U[t*2+1]=clip(this.U[t*2+1]+d1,-ENV.MAX_ACC,ENV.MAX_ACC);
+        this.U[t*2]=clip(this.U[t*2]+d0,-actionLim(),actionLim());this.U[t*2+1]=clip(this.U[t*2+1]+d1,-actionLim(),actionLim());
       }
       // SG smoothing after each annealing iteration
       applySGSmoothing(this.U, H, _sgCoeffs);
@@ -779,7 +853,7 @@ function resetSim(){
   const sv=parseInt(document.getElementById('inp-seed').value)||42;
   setSeed(sv);
   for(const ag of Object.values(sim.agents)){
-    ag.state=new Float64Array([ENV.start[0],ENV.start[1],0,0]);
+    ag.state=initState();
     ag.traj=[];ag.done=false;if(ag.ctrl)ag.ctrl.reset();
   }
   makeCtrl();updateUI();render();drawCharts();
@@ -797,6 +871,7 @@ function tick(){
   for(const k of keys){
     const ag=sim.agents[k];if(ag.done)continue;allDone=false;
     const[ax,ay]=ag.ctrl.compute(ag.state);
+    ag.lastAction=[ax,ay];
     ag.state=stepEnv(ag.state,ax,ay);
     ag.traj.push([ag.state[0],ag.state[1]]);
     const d=Math.hypot(ag.state[0]-ENV.goal[0],ag.state[1]-ENV.goal[1]);
@@ -1103,14 +1178,28 @@ function render(){
     // Bug fix 1: arrow function (not hoisted function declaration inside loop)
     const drawRollout = (ki, lineW, shadowB, shadowC) => {
       const isExplore = ki < nExplore;
-      let sx=ag.state[0],sy=ag.state[1],svx=ag.state[2],svy=ag.state[3];
+      const is1st = dynModel==='1st';
+      let sx=ag.state[0], sy=ag.state[1];
+      let svx=is1st ? 0 : (ag.state[2]||0);
+      let svy=is1st ? 0 : (ag.state[3]||0);
       CTX.beginPath();const[px,py]=w2c(sx,sy);CTX.moveTo(px,py);
       for(let t=0;t<hz;t++){
         const e0=eps?eps[ki*hz*2+t*2]:0, e1=eps?eps[ki*hz*2+t*2+1]:0;
-        const ax=clip(isExplore ? e0 : U[t*2]+e0,   -ENV.MAX_ACC,ENV.MAX_ACC);
-        const ay=clip(isExplore ? e1 : U[t*2+1]+e1, -ENV.MAX_ACC,ENV.MAX_ACC);
-        svx+=ax*ENV.DT-ENV.DRAG*svx*ENV.DT;svy+=ay*ENV.DT-ENV.DRAG*svy*ENV.DT;
-        sx=clip(sx+svx*ENV.DT,-ENV.BOUND,ENV.BOUND);sy=clip(sy+svy*ENV.DT,-ENV.BOUND,ENV.BOUND);
+        const ax=clip(isExplore ? e0 : U[t*2]+e0,   -actionLim(),actionLim());
+        const ay=clip(isExplore ? e1 : U[t*2+1]+e1, -actionLim(),actionLim());
+        if(is1st){
+          // 1st-order: position += velocity * DT  (action = velocity command)
+          sx=clip(sx+ax*ENV.DT,-ENV.BOUND,ENV.BOUND);
+          sy=clip(sy+ay*ENV.DT,-ENV.BOUND,ENV.BOUND);
+        } else {
+          // 2nd-order: acceleration + damping
+          svx+=ax*ENV.DT-ENV.DRAG*svx*ENV.DT;
+          svy+=ay*ENV.DT-ENV.DRAG*svy*ENV.DT;
+          const sp=Math.sqrt(svx*svx+svy*svy);
+          if(sp>ENV.MAX_SPEED){svx*=ENV.MAX_SPEED/sp;svy*=ENV.MAX_SPEED/sp;}
+          sx=clip(sx+svx*ENV.DT,-ENV.BOUND,ENV.BOUND);
+          sy=clip(sy+svy*ENV.DT,-ENV.BOUND,ENV.BOUND);
+        }
         const[qx,qy]=w2c(sx,sy);CTX.lineTo(qx,qy);
       }
       CTX.lineWidth=lineW;
@@ -1155,7 +1244,11 @@ function render(){
   for(const k of dkeys){
     const ag=sim.agents[k];if(!ag.state)continue;
     const[ax,ay]=w2c(ag.state[0],ag.state[1]);
-    const vx=ag.state[2],vy=ag.state[3],vs=S*.38;
+    // velocity vector: state velocity (2nd) or last applied action (1st)
+    let vx=0,vy=0;
+    if(dynModel==='2nd'){ vx=ag.state[2]||0; vy=ag.state[3]||0; }
+    else if(ag.lastAction){ vx=ag.lastAction[0]; vy=ag.lastAction[1]; }
+    const vs=S*.38;
     const ex=ax+vx*vs,ey=ay-vy*vs;
     CTX.strokeStyle='#00d4ff';CTX.lineWidth=1.8;CTX.beginPath();CTX.moveTo(ax,ay);CTX.lineTo(ex,ey);CTX.stroke();
     const ang=Math.atan2(ey-ay,ex-ax);
@@ -1242,12 +1335,21 @@ function updateUI(){
   const s=ag?.state;
   document.getElementById('st-s').textContent=sim.steps;
   if(s){
+    const ag2=sim.agents[sim.mode==='both'?'dial':sim.mode];
     const d=Math.hypot(s[0]-ENV.goal[0],s[1]-ENV.goal[1]);
     document.getElementById('st-d').textContent=d.toFixed(2);
     document.getElementById('st-x').textContent=s[0].toFixed(2);
     document.getElementById('st-y').textContent=s[1].toFixed(2);
-    document.getElementById('st-v').textContent=Math.hypot(s[2],s[3]).toFixed(2);
-    const spd=Math.hypot(s[2],s[3]);
+    let spd=0;
+    if(dynModel==='2nd'){
+      spd=Math.hypot(s[2]||0,s[3]||0);
+      document.getElementById('st-v').textContent=spd.toFixed(2);
+    } else {
+      // 1st-order: show magnitude of last applied velocity command
+      const la=ag2.lastAction;
+      spd=la?Math.hypot(la[0],la[1]):0;
+      document.getElementById('st-v').textContent=spd.toFixed(2);
+    }
     document.getElementById('spd-bar').style.width=Math.min(spd/ENV.MAX_SPEED*100,100)+'%';
   }
   document.getElementById('st-r').textContent=sim.totalRew.toFixed(1);
@@ -1266,6 +1368,38 @@ U ← U + Σ w_k ε_k</span>Fixed σ across all horizon steps.`;
          -(H-h)/(β₂H)] · I</span>Large σ→coverage, small σ→convergence.`;
   else e.innerHTML=`<strong>Both</strong>: MPPI (cyan) vs DIAL-MPC (green) run simultaneously on identical environments for direct comparison.`;
 }
+
+// ── Dynamics model wiring ─────────────────────────────
+const DYN_DESC = {
+  '2nd': `<strong style="color:var(--text)">2nd-Order + Damping</strong><br>state = [x, y, vx, vy]<br>action = acceleration [ax, ay]<br>ẍ = a − drag·ẋ`,
+  '1st': `<strong style="color:var(--text)">1st-Order (no damping)</strong><br>state = [x, y]<br>action = velocity [vx, vy]<br>ẋ = v (direct velocity command)`,
+};
+
+function applyDynModel(m){
+  dynModel = m;
+  // tab highlight
+  document.querySelectorAll('#dyn-tabs .dtab').forEach(t=>{
+    const on = t.dataset.dyn===m;
+    t.style.background   = on ? 'rgba(251,146,60,.15)' : '';
+    t.style.color        = on ? '#fb923c' : '';
+    t.style.borderColor  = on ? '#fb923c' : '';
+  });
+  // description
+  document.getElementById('dyn-desc').innerHTML = DYN_DESC[m];
+  // show/hide Max Accel (only relevant for 2nd-order)
+  document.getElementById('row-ma').style.display = m==='2nd' ? '' : 'none';
+  // update Speed/Action label
+  document.getElementById('lbl-v').textContent = m==='1st' ? 'Action |v|' : 'Speed';
+  // speed gauge label
+  document.getElementById('spd-max-lbl').textContent =
+    m==='1st' ? '/ '+document.getElementById('s-mv').value
+              : '/ '+document.getElementById('s-mv').value;
+  resetSim();
+}
+
+document.querySelectorAll('#dyn-tabs .dtab').forEach(tab=>{
+  tab.addEventListener('click', ()=> applyDynModel(tab.dataset.dyn));
+});
 
 // ═══════════════════════════════════════════════════════
 // WIRING
@@ -1393,7 +1527,8 @@ window.addEventListener('resize',resize);
 // BOOT
 // ═══════════════════════════════════════════════════════
 resize();makeCtrl();setInfo('mppi');setSeed(42);updateGamma();rebuildSGCoeffs();updateSGUI();
-for(const ag of Object.values(sim.agents))ag.state=new Float64Array([ENV.start[0],ENV.start[1],0,0]);
+applyDynModel('2nd'); // sets tab highlight, desc, resets sim
+for(const ag of Object.values(sim.agents))ag.state=initState();
 renderObsList();updateGoalLabel();render();drawCharts();
 </script>
 </body>
