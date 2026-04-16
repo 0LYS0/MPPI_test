@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MPPI · DIAL-MPC · 2D Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+/* ─── TOKENS ─────────────────────────────────────────── */
+:root {
+  --bg:        #080c10;
+  --surface:   #0d1117;
+  --panel:     #111820;
+  --border:    #1e2d3d;
+  --border2:   #243447;
+  --text:      #c9d8e8;
+  --muted:     #4a6480;
+  --accent1:   #00e5ff;   /* cyan  – MPPI  */
+  --accent2:   #39ff9a;   /* green – DIAL  */
+  --danger:    #ff4d6d;
+  --warn:      #f5a623;
+  --goal:      #39ff9a;
+  --start:     #3b82f6;
+  --obs:       #ff4d6d;
+  --traj1:     #00e5ff;
+  --traj2:     #39ff9a;
+  --samp:      rgba(138,100,255,0.18);
+  --glow1:     rgba(0,229,255,0.15);
+  --glow2:     rgba(57,255,154,0.15);
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --r:    6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── SCAN-LINE OVERLAY ──────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.06) 2px,
+    rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ─── LAYOUT ─────────────────────────────────────────── */
+header {
+  padding: 18px 28px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: linear-gradient(90deg, rgba(0,229,255,0.04), transparent 60%);
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.logo-title {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.logo-sub {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+  border: 1px solid;
+}
+.badge-paper {
+  color: var(--accent1);
+  border-color: var(--accent1);
+  background: var(--glow1);
+}
+.header-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ─── MAIN GRID ──────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 260px;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - 64px);
+  gap: 0;
+}
+
+/* ─── SIDEBAR ────────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sidebar.right {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.section-label {
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ─── ALGO SWITCHER ──────────────────────────────────── */
+.algo-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  background: var(--panel);
+  padding: 4px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+}
+.algo-tab {
+  padding: 7px 4px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+  letter-spacing: .5px;
+}
+.algo-tab:hover { color: var(--text); background: var(--border); }
+.algo-tab.active-mppi  { background: rgba(0,229,255,0.15); color: var(--accent1); border: 1px solid rgba(0,229,255,0.35); }
+.algo-tab.active-dial  { background: rgba(57,255,154,0.12); color: var(--accent2); border: 1px solid rgba(57,255,154,0.35); }
+.algo-tab.active-both  { background: rgba(138,100,255,0.15); color: #b084ff;       border: 1px solid rgba(138,100,255,0.35); }
+
+/* ─── SLIDER CONTROLS ────────────────────────────────── */
+.param-group { display: flex; flex-direction: column; gap: 10px; }
+
+.param-row { display: flex; flex-direction: column; gap: 4px; }
+.param-header { display: flex; justify-content: space-between; align-items: baseline; }
+.param-name { font-size: 10px; color: var(--text); letter-spacing: .5px; }
+.param-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent1);
+  min-width: 36px;
+  text-align: right;
+}
+.param-val.dial { color: var(--accent2); }
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border2);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent1);
+  box-shadow: 0 0 6px var(--accent1);
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px var(--accent1);
+}
+.dial-slider::-webkit-slider-thumb {
+  background: var(--accent2);
+  box-shadow: 0 0 6px var(--accent2);
+}
+.dial-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px var(--accent2);
+}
+
+/* ─── BUTTONS ────────────────────────────────────────── */
+.btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.btn {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--border2);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent1); color: var(--accent1); background: var(--glow1); }
+.btn.primary {
+  background: rgba(0,229,255,0.1);
+  border-color: var(--accent1);
+  color: var(--accent1);
+  box-shadow: 0 0 12px rgba(0,229,255,0.1);
+}
+.btn.primary:hover { box-shadow: 0 0 20px rgba(0,229,255,0.25); }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+.btn.danger:hover { background: rgba(255,77,109,0.12); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ─── STATUS DISPLAY ─────────────────────────────────── */
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.stat-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-label { font-size: 9px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+.stat-value { font-size: 14px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+.stat-value.cyan  { color: var(--accent1); }
+.stat-value.green { color: var(--accent2); }
+.stat-value.warn  { color: var(--warn); }
+.stat-value.danger{ color: var(--danger); }
+
+/* ─── CANVAS AREA ────────────────────────────────────── */
+.canvas-area {
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+#sim-canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* ─── PROGRESS BAR ───────────────────────────────────── */
+.progress-bar-wrap {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 80%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+}
+.progress-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  border-radius: 2px;
+  transition: width .1s;
+}
+.progress-label { color: var(--muted); white-space: nowrap; }
+
+/* ─── MINI CHARTS ────────────────────────────────────── */
+.mini-chart-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px;
+}
+.mini-chart-title {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+canvas.mini-chart {
+  width: 100%;
+  height: 60px;
+  display: block;
+  border-radius: 3px;
+}
+
+/* ─── LEGEND ─────────────────────────────────────────── */
+.legend { display: flex; flex-direction: column; gap: 5px; }
+.legend-row { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--muted); }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.legend-line { width: 20px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+
+/* ─── ALGO INFO CARD ──────────────────────────────────── */
+.info-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.info-card strong { color: var(--text); }
+.info-card .formula {
+  font-size: 10px;
+  color: var(--accent2);
+  background: rgba(57,255,154,0.06);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 4px 0;
+  border-left: 2px solid var(--accent2);
+  white-space: pre;
+}
+
+/* ─── GOAL FLASH ─────────────────────────────────────── */
+.goal-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(57,255,154,0.18), transparent 65%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.goal-flash.show { opacity: 1; }
+
+/* ─── SCROLLBAR ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ─── RESPONSIVE ─────────────────────────────────────── */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  .sidebar.right { border-left: none; border-top: 1px solid var(--border); }
+  .canvas-area { height: 60vw; min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header>
+  <div class="logo">
+    <span class="logo-title">MPPI · DIAL-MPC</span>
+    <span class="logo-sub">2D Point Mass Simulator</span>
+  </div>
+  <div class="header-right">
+    <span class="badge badge-paper">arXiv:2409.15610</span>
+    <span class="badge badge-paper" style="color:var(--accent2);border-color:var(--accent2);background:var(--glow2)">Xue et al., 2024</span>
+  </div>
+</header>
+
+<!-- ══════════════ LAYOUT ══════════════ -->
+<div class="layout">
+
+  <!-- ── LEFT SIDEBAR ── -->
+  <aside class="sidebar">
+    <div>
+      <div class="section-label">Algorithm</div>
+      <div class="algo-tabs">
+        <button class="algo-tab active-mppi" data-algo="mppi">MPPI</button>
+        <button class="algo-tab" data-algo="dial">DIAL</button>
+        <button class="algo-tab" data-algo="both">Both</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Common</div>
+      <div class="param-group">
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Horizon H</span>
+            <span class="param-val" id="val-H">30</span>
+          </div>
+          <input type="range" id="sl-H" min="10" max="50" value="30" step="5"/>
+        </div>
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Samples K</span>
+            <span class="param-val" id="val-K">400</span>
+          </div>
+          <input type="range" id="sl-K" min="100" max="1000" value="400" step="100"/>
+        </div>
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Temperature λ</span>
+            <span class="param-val" id="val-lam">0.05</span>
+          </div>
+          <input type="range" id="sl-lam" min="0.01" max="0.5" value="0.05" step="0.01"/>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label" style="color:var(--accent1)">MPPI Params</div>
+      <div class="param-group">
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Noise σ</span>
+            <span class="param-val" id="val-sigma">0.9</span>
+          </div>
+          <input type="range" id="sl-sigma" min="0.1" max="2.5" value="0.9" step="0.1"/>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label" style="color:var(--accent2)">DIAL-MPC Params</div>
+      <div class="param-group">
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Iterations N</span>
+            <span class="param-val dial" id="val-N">5</span>
+          </div>
+          <input class="dial-slider" type="range" id="sl-N" min="1" max="12" value="5" step="1"/>
+        </div>
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">σ_base</span>
+            <span class="param-val dial" id="val-sbase">1.2</span>
+          </div>
+          <input class="dial-slider" type="range" id="sl-sbase" min="0.3" max="3.0" value="1.2" step="0.1"/>
+        </div>
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">β₁ (traj)</span>
+            <span class="param-val dial" id="val-b1">0.6</span>
+          </div>
+          <input class="dial-slider" type="range" id="sl-b1" min="0.1" max="2.0" value="0.6" step="0.1"/>
+        </div>
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">β₂ (action)</span>
+            <span class="param-val dial" id="val-b2">0.5</span>
+          </div>
+          <input class="dial-slider" type="range" id="sl-b2" min="0.1" max="2.0" value="0.5" step="0.1"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn primary" id="btn-start">▶ START</button>
+      <button class="btn danger" id="btn-reset">↺ RESET</button>
+    </div>
+
+    <div>
+      <div class="section-label">Legend</div>
+      <div class="legend">
+        <div class="legend-row"><div class="legend-dot" style="background:var(--goal)"></div>Goal</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--start)"></div>Start</div>
+        <div class="legend-row"><div class="legend-dot" style="background:var(--obs)"></div>Obstacle</div>
+        <div class="legend-row"><div class="legend-line" style="background:var(--accent1)"></div>MPPI trajectory</div>
+        <div class="legend-row"><div class="legend-line" style="background:var(--accent2)"></div>DIAL-MPC trajectory</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgba(138,100,255,0.6)"></div>Sample rollouts</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── CANVAS ── -->
+  <div class="canvas-area">
+    <canvas id="sim-canvas"></canvas>
+    <div class="goal-flash" id="goal-flash"></div>
+    <div class="progress-bar-wrap">
+      <span class="progress-label" id="prog-label">IDLE</span>
+      <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+      <span class="progress-label" id="prog-step">0 / 1200</span>
+    </div>
+  </div>
+
+  <!-- ── RIGHT SIDEBAR ── -->
+  <aside class="sidebar right">
+    <div>
+      <div class="section-label">Status</div>
+      <div class="status-grid">
+        <div class="stat-box">
+          <span class="stat-label">Steps</span>
+          <span class="stat-value cyan" id="st-steps">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Dist to Goal</span>
+          <span class="stat-value warn" id="st-dist">—</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Pos X</span>
+          <span class="stat-value" id="st-x">—</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Pos Y</span>
+          <span class="stat-value" id="st-y">—</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Speed</span>
+          <span class="stat-value" id="st-spd">—</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Σ Reward</span>
+          <span class="stat-value green" id="st-rew">0.0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mini-chart-wrap">
+      <div class="mini-chart-title">Avg Sample Cost</div>
+      <canvas class="mini-chart" id="chart-cost" width="220" height="60"></canvas>
+    </div>
+
+    <div class="mini-chart-wrap">
+      <div class="mini-chart-title" id="chart2-title">Noise σ Profile (DIAL)</div>
+      <canvas class="mini-chart" id="chart-sigma" width="220" height="60"></canvas>
+    </div>
+
+    <div>
+      <div class="section-label">Algorithm Note</div>
+      <div class="info-card" id="algo-info">
+        Select an algorithm and press START.
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ══════════════ SCRIPT ══════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════
+// MATH UTILITIES
+// ═══════════════════════════════════════════════════════
+function randn() {
+  // Box-Muller
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function randnBatch(n) {
+  const a = new Float64Array(n);
+  for (let i = 0; i < n; i++) a[i] = randn();
+  return a;
+}
+
+function clip(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ═══════════════════════════════════════════════════════
+// ENVIRONMENT
+// ═══════════════════════════════════════════════════════
+const ENV = {
+  DT: 0.05, DRAG: 0.15, MAX_SPEED: 4.0, BOUND: 10.0,
+  goal: [7.0, 7.0],
+  start: [-7.0, -7.0],
+  obstacles: [
+    { pos: [ 3.0,  3.0], r: 1.2 },
+    { pos: [ 5.0,  1.5], r: 1.0 },
+    { pos: [ 1.5,  6.0], r: 0.9 },
+    { pos: [ 5.5,  5.5], r: 1.1 },
+    { pos: [ 7.5,  3.0], r: 0.8 },
+  ]
+};
+
+// state: Float64Array [x, y, vx, vy]  (single)
+function stepEnv(state, ax, ay) {
+  let [x, y, vx, vy] = state;
+  vx += ax * ENV.DT - ENV.DRAG * vx * ENV.DT;
+  vy += ay * ENV.DT - ENV.DRAG * vy * ENV.DT;
+  const spd = Math.sqrt(vx*vx + vy*vy);
+  if (spd > ENV.MAX_SPEED) { vx *= ENV.MAX_SPEED/spd; vy *= ENV.MAX_SPEED/spd; }
+  x += vx * ENV.DT; y += vy * ENV.DT;
+  if (Math.abs(x) > ENV.BOUND) { x = clip(x, -ENV.BOUND, ENV.BOUND); vx *= -0.5; }
+  if (Math.abs(y) > ENV.BOUND) { y = clip(y, -ENV.BOUND, ENV.BOUND); vy *= -0.5; }
+  return new Float64Array([x, y, vx, vy]);
+}
+
+// Batch dynamics: states [K*4], actions [K*2] → next [K*4]
+function batchDynamics(states, actions, K) {
+  const next = new Float64Array(K * 4);
+  for (let k = 0; k < K; k++) {
+    const i4 = k*4, i2 = k*2;
+    let x = states[i4], y = states[i4+1], vx = states[i4+2], vy = states[i4+3];
+    let ax = clip(actions[i2],   -2, 2);
+    let ay = clip(actions[i2+1], -2, 2);
+    vx += ax * ENV.DT - ENV.DRAG * vx * ENV.DT;
+    vy += ay * ENV.DT - ENV.DRAG * vy * ENV.DT;
+    const spd = Math.sqrt(vx*vx + vy*vy);
+    if (spd > ENV.MAX_SPEED) { vx *= ENV.MAX_SPEED/spd; vy *= ENV.MAX_SPEED/spd; }
+    x = clip(x + vx*ENV.DT, -ENV.BOUND, ENV.BOUND);
+    y = clip(y + vy*ENV.DT, -ENV.BOUND, ENV.BOUND);
+    next[i4]=x; next[i4+1]=y; next[i4+2]=vx; next[i4+3]=vy;
+  }
+  return next;
+}
+
+function runningCost(states, K) {
+  const cost = new Float64Array(K);
+  const [gx, gy] = ENV.goal;
+  for (let k = 0; k < K; k++) {
+    const x = states[k*4], y = states[k*4+1];
+    const dist = Math.sqrt((x-gx)**2 + (y-gy)**2);
+    cost[k] = dist * 2.0;
+    for (const o of ENV.obstacles) {
+      const d = Math.sqrt((x-o.pos[0])**2 + (y-o.pos[1])**2) - o.r;
+      if (d < 0.5) cost[k] += (0.5 - Math.max(d, 0)) * 50.0;
+    }
+  }
+  return cost;
+}
+
+function terminalCost(states, K) {
+  const cost = new Float64Array(K);
+  const [gx, gy] = ENV.goal;
+  for (let k = 0; k < K; k++) {
+    const x = states[k*4], y = states[k*4+1];
+    cost[k] = Math.sqrt((x-gx)**2 + (y-gy)**2) * 10.0;
+  }
+  return cost;
+}
+
+// ═══════════════════════════════════════════════════════
+// MPPI CONTROLLER
+// ═══════════════════════════════════════════════════════
+class MPPI {
+  constructor(cfg) {
+    this.H     = cfg.H     || 30;
+    this.K     = cfg.K     || 400;
+    this.lam   = cfg.lam   || 0.05;
+    this.sigma = cfg.sigma || 0.9;
+    this.U     = new Float64Array(this.H * 2); // [H*2] interleaved [ax,ay, ax,ay,...]
+    this.lastWeights = null;
+    this.lastEps     = null;
+    this.costHistory = [];
+  }
+
+  reset() { this.U.fill(0); this.costHistory = []; }
+
+  compute(state) {
+    const { H, K, lam, sigma } = this;
+    // sample noise [K, H, 2]
+    const eps = new Float64Array(K * H * 2);
+    for (let i = 0; i < eps.length; i++) eps[i] = randn() * sigma;
+
+    // rollout
+    const states = new Float64Array(K * 4);
+    for (let k = 0; k < K; k++) {
+      states[k*4]=state[0]; states[k*4+1]=state[1];
+      states[k*4+2]=state[2]; states[k*4+3]=state[3];
+    }
+    const costs = new Float64Array(K);
+    const actions = new Float64Array(K * 2);
+
+    for (let t = 0; t < H; t++) {
+      for (let k = 0; k < K; k++) {
+        actions[k*2]   = clip(this.U[t*2]   + eps[k*H*2 + t*2],   -2, 2);
+        actions[k*2+1] = clip(this.U[t*2+1] + eps[k*H*2 + t*2+1], -2, 2);
+      }
+      const ns = batchDynamics(states, actions, K);
+      const rc = runningCost(ns, K);
+      for (let k = 0; k < K; k++) costs[k] += rc[k];
+      states.set(ns);
+    }
+    const tc = terminalCost(states, K);
+    for (let k = 0; k < K; k++) costs[k] += tc[k];
+
+    // weights
+    let beta = Infinity;
+    for (let k = 0; k < K; k++) if (costs[k] < beta) beta = costs[k];
+    const weights = new Float64Array(K);
+    let wsum = 0;
+    for (let k = 0; k < K; k++) { weights[k] = Math.exp(-(costs[k]-beta)/lam); wsum += weights[k]; }
+    for (let k = 0; k < K; k++) weights[k] /= (wsum + 1e-8);
+
+    // update U
+    for (let t = 0; t < H; t++) {
+      let du0 = 0, du1 = 0;
+      for (let k = 0; k < K; k++) {
+        du0 += weights[k] * eps[k*H*2 + t*2];
+        du1 += weights[k] * eps[k*H*2 + t*2+1];
+      }
+      this.U[t*2]   = clip(this.U[t*2]   + du0, -2, 2);
+      this.U[t*2+1] = clip(this.U[t*2+1] + du1, -2, 2);
+    }
+
+    let avgCost = 0; for (let k=0;k<K;k++) avgCost+=costs[k]; avgCost/=K;
+    this.costHistory.push(avgCost);
+    this.lastWeights = weights;
+    this.lastEps     = eps;
+
+    const a0 = this.U[0], a1 = this.U[1];
+    // shift
+    for (let t = 0; t < H-1; t++) {
+      this.U[t*2]   = this.U[(t+1)*2];
+      this.U[t*2+1] = this.U[(t+1)*2+1];
+    }
+    this.U[(H-1)*2] = 0; this.U[(H-1)*2+1] = 0;
+    return [a0, a1];
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// DIAL-MPC CONTROLLER
+// ═══════════════════════════════════════════════════════
+class DIALMPC {
+  constructor(cfg) {
+    this.H      = cfg.H     || 30;
+    this.K      = cfg.K     || 400;
+    this.N      = cfg.N     || 5;
+    this.lam    = cfg.lam   || 0.05;
+    this.sbase  = cfg.sbase || 1.2;
+    this.beta1  = cfg.beta1 || 0.6;
+    this.beta2  = cfg.beta2 || 0.5;
+    this.U      = new Float64Array(this.H * 2);
+    this.lastWeights = null;
+    this.lastEps     = null;
+    this.lastSigmas  = null;
+    this.costHistory = [];
+  }
+
+  reset() { this.U.fill(0); this.costHistory = []; }
+
+  // σ schedule (eq. 7)
+  sigmaSchedule(i) {
+    const { H, N, beta1, beta2, sbase } = this;
+    const sigmas = new Float64Array(H);
+    for (let h = 0; h < H; h++) {
+      const trajTerm   = (N - i) / (beta1 * N);
+      const actionTerm = (H - 1 - h) / (beta2 * H);
+      sigmas[h] = sbase * Math.exp(-(trajTerm + actionTerm) / 2);
+    }
+    return sigmas;
+  }
+
+  compute(state) {
+    const { H, K, N, lam } = this;
+    let allCosts = 0, iters = 0;
+    let lastW = null, lastE = null;
+
+    for (let i = N; i >= 1; i--) {
+      const sigmas = this.sigmaSchedule(i);
+
+      // sample [K, H, 2]
+      const eps = new Float64Array(K * H * 2);
+      for (let k = 0; k < K; k++)
+        for (let t = 0; t < H; t++) {
+          const s = sigmas[t];
+          eps[k*H*2 + t*2]   = randn() * s;
+          eps[k*H*2 + t*2+1] = randn() * s;
+        }
+
+      // rollout
+      const states = new Float64Array(K * 4);
+      for (let k = 0; k < K; k++) {
+        states[k*4]=state[0]; states[k*4+1]=state[1];
+        states[k*4+2]=state[2]; states[k*4+3]=state[3];
+      }
+      const costs   = new Float64Array(K);
+      const actions = new Float64Array(K * 2);
+
+      for (let t = 0; t < H; t++) {
+        for (let k = 0; k < K; k++) {
+          actions[k*2]   = clip(this.U[t*2]   + eps[k*H*2 + t*2],   -2, 2);
+          actions[k*2+1] = clip(this.U[t*2+1] + eps[k*H*2 + t*2+1], -2, 2);
+        }
+        const ns = batchDynamics(states, actions, K);
+        const rc = runningCost(ns, K);
+        for (let k = 0; k < K; k++) costs[k] += rc[k];
+        states.set(ns);
+      }
+      const tc = terminalCost(states, K);
+      for (let k = 0; k < K; k++) costs[k] += tc[k];
+
+      // weights
+      let beta = Infinity;
+      for (let k = 0; k < K; k++) if (costs[k] < beta) beta = costs[k];
+      const weights = new Float64Array(K);
+      let wsum = 0;
+      for (let k = 0; k < K; k++) { weights[k] = Math.exp(-(costs[k]-beta)/lam); wsum += weights[k]; }
+      for (let k = 0; k < K; k++) weights[k] /= (wsum + 1e-8);
+
+      // update U
+      for (let t = 0; t < H; t++) {
+        let du0 = 0, du1 = 0;
+        for (let k = 0; k < K; k++) {
+          du0 += weights[k] * eps[k*H*2 + t*2];
+          du1 += weights[k] * eps[k*H*2 + t*2+1];
+        }
+        this.U[t*2]   = clip(this.U[t*2]   + du0, -2, 2);
+        this.U[t*2+1] = clip(this.U[t*2+1] + du1, -2, 2);
+      }
+
+      let c = 0; for (let k=0;k<K;k++) c+=costs[k]; allCosts+=c/K; iters++;
+      lastW = weights; lastE = eps;
+      if (i === 1) this.lastSigmas = sigmas;
+    }
+
+    this.costHistory.push(allCosts / iters);
+    this.lastWeights = lastW;
+    this.lastEps     = lastE;
+
+    const a0 = this.U[0], a1 = this.U[1];
+    for (let t = 0; t < H-1; t++) {
+      this.U[t*2]   = this.U[(t+1)*2];
+      this.U[t*2+1] = this.U[(t+1)*2+1];
+    }
+    this.U[(H-1)*2] = 0; this.U[(H-1)*2+1] = 0;
+    return [a0, a1];
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// SIMULATION STATE
+// ═══════════════════════════════════════════════════════
+let simState = {
+  mode: 'mppi',       // 'mppi' | 'dial' | 'both'
+  running: false,
+  raf: null,
+  stepCount: 0,
+  maxSteps: 1200,
+  totalReward: 0,
+  goalReached: false,
+
+  // per-agent
+  agents: {
+    mppi: { state: null, ctrl: null, traj: [], done: false, color: '#00e5ff' },
+    dial: { state: null, ctrl: null, traj: [], done: false, color: '#39ff9a' },
+  }
+};
+
+function makeControllers() {
+  const cfg = getParams();
+  simState.agents.mppi.ctrl = new MPPI({ H: cfg.H, K: cfg.K, lam: cfg.lam, sigma: cfg.sigma });
+  simState.agents.dial.ctrl = new DIALMPC({ H: cfg.H, K: cfg.K, N: cfg.N, lam: cfg.lam,
+                                             sbase: cfg.sbase, beta1: cfg.b1, beta2: cfg.b2 });
+}
+
+function resetSim() {
+  cancelAnimationFrame(simState.raf);
+  simState.running   = false;
+  simState.stepCount = 0;
+  simState.totalReward = 0;
+  simState.goalReached = false;
+  for (const [, ag] of Object.entries(simState.agents)) {
+    ag.state = new Float64Array([ENV.start[0], ENV.start[1], 0, 0]);
+    ag.traj  = [];
+    ag.done  = false;
+    if (ag.ctrl) ag.ctrl.reset();
+  }
+  makeControllers();
+  updateUI();
+  render();
+  document.getElementById('goal-flash').classList.remove('show');
+  document.getElementById('btn-start').textContent = '▶ START';
+}
+
+// ═══════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════
+function tick() {
+  if (!simState.running) return;
+
+  const mode = simState.mode;
+  const activeKeys = mode === 'both' ? ['mppi','dial'] : [mode];
+
+  let allDone = true;
+  for (const key of activeKeys) {
+    const ag = simState.agents[key];
+    if (ag.done) continue;
+    allDone = false;
+
+    const [ax, ay] = ag.ctrl.compute(ag.state);
+    ag.state = stepEnv(ag.state, ax, ay);
+    ag.traj.push([ag.state[0], ag.state[1]]);
+
+    // reward
+    const dist = Math.hypot(ag.state[0]-ENV.goal[0], ag.state[1]-ENV.goal[1]);
+    simState.totalReward += -dist * 0.1;
+
+    if (dist < 0.4 || simState.stepCount >= simState.maxSteps) {
+      ag.done = true;
+      if (dist < 0.4) {
+        simState.goalReached = true;
+        document.getElementById('goal-flash').classList.add('show');
+        setTimeout(() => document.getElementById('goal-flash').classList.remove('show'), 800);
+      }
+    }
+  }
+
+  simState.stepCount++;
+  updateUI();
+  render();
+  drawMiniCharts();
+
+  if (allDone || simState.stepCount >= simState.maxSteps) {
+    simState.running = false;
+    document.getElementById('btn-start').textContent = '▶ RESTART';
+    return;
+  }
+
+  simState.raf = requestAnimationFrame(tick);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('sim-canvas');
+const ctx    = canvas.getContext('2d');
+
+function worldToCanvas(x, y) {
+  const W = canvas.width, H = canvas.height;
+  const scale = Math.min(W, H) / (2 * ENV.BOUND + 2);
+  const cx = W / 2, cy = H / 2;
+  return [cx + x * scale, cy - y * scale, scale];
+}
+
+function resizeCanvas() {
+  const area = document.querySelector('.canvas-area');
+  const sz   = Math.min(area.clientWidth - 20, area.clientHeight - 50);
+  canvas.width  = sz;
+  canvas.height = sz;
+  render();
+}
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // background
+  ctx.fillStyle = '#080c10';
+  ctx.fillRect(0, 0, W, H);
+
+  // grid
+  const [ox, oy, scale] = worldToCanvas(0, 0);
+  ctx.strokeStyle = 'rgba(30,45,61,0.8)';
+  ctx.lineWidth   = 0.5;
+  for (let v = -ENV.BOUND; v <= ENV.BOUND; v += 2) {
+    const [x1] = worldToCanvas(v, -ENV.BOUND);
+    const [, y1] = worldToCanvas(-ENV.BOUND, v);
+    ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y1); ctx.lineTo(W, y1); ctx.stroke();
+  }
+
+  // border
+  const [bx1, by1] = worldToCanvas(-ENV.BOUND, ENV.BOUND);
+  const [bx2, by2] = worldToCanvas( ENV.BOUND,-ENV.BOUND);
+  ctx.strokeStyle = '#1e2d3d';
+  ctx.lineWidth   = 1.5;
+  ctx.strokeRect(bx1, by1, bx2-bx1, by2-by1);
+
+  // obstacles
+  for (const o of ENV.obstacles) {
+    const [cx, cy, sc] = worldToCanvas(o.pos[0], o.pos[1]);
+    const r = o.r * sc;
+
+    // glow
+    const grd = ctx.createRadialGradient(cx, cy, r*0.4, cx, cy, r*1.6);
+    grd.addColorStop(0, 'rgba(255,77,109,0.18)');
+    grd.addColorStop(1, 'rgba(255,77,109,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(cx, cy, r*1.6, 0, Math.PI*2); ctx.fill();
+
+    ctx.fillStyle   = 'rgba(255,77,109,0.65)';
+    ctx.strokeStyle = '#ff4d6d';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // danger ring
+    ctx.strokeStyle = 'rgba(255,77,109,0.22)';
+    ctx.lineWidth   = 0.7;
+    ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.arc(cx, cy, (o.r+0.5)*sc, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // start
+  {
+    const [sx, sy, sc] = worldToCanvas(ENV.start[0], ENV.start[1]);
+    ctx.fillStyle   = '#3b82f6';
+    ctx.strokeStyle = 'rgba(59,130,246,0.4)';
+    ctx.lineWidth   = 6;
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI*2); ctx.stroke();
+    ctx.fill();
+    ctx.fillStyle   = 'rgba(59,130,246,0.7)';
+    ctx.font        = `bold ${Math.round(sc*0.35)}px 'Space Mono'`;
+    ctx.textAlign   = 'center';
+    ctx.fillText('START', sx, sy + sc*0.55);
+  }
+
+  // goal
+  {
+    const [gx, gy, sc] = worldToCanvas(ENV.goal[0], ENV.goal[1]);
+    const t = Date.now() / 800;
+    const pulse = 1 + 0.12 * Math.sin(t);
+    const grd = ctx.createRadialGradient(gx, gy, 0, gx, gy, sc*0.5*pulse);
+    grd.addColorStop(0, 'rgba(57,255,154,0.9)');
+    grd.addColorStop(1, 'rgba(57,255,154,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(gx, gy, sc*0.5*pulse, 0, Math.PI*2); ctx.fill();
+
+    ctx.fillStyle   = '#39ff9a';
+    ctx.strokeStyle = 'rgba(57,255,154,0.3)';
+    ctx.lineWidth   = 8;
+    ctx.beginPath(); ctx.arc(gx, gy, sc*0.25, 0, Math.PI*2); ctx.stroke(); ctx.fill();
+
+    ctx.fillStyle = 'rgba(57,255,154,0.8)';
+    ctx.font      = `bold ${Math.round(sc*0.35)}px 'Space Mono'`;
+    ctx.textAlign = 'center';
+    ctx.fillText('GOAL', gx, gy - sc*0.45);
+  }
+
+  // sample rollouts
+  const mode = simState.mode;
+  const drawKeys = mode === 'both' ? ['mppi','dial'] : [mode];
+
+  for (const key of drawKeys) {
+    const ag = simState.agents[key];
+    if (!ag.ctrl || !ag.ctrl.lastWeights) continue;
+
+    const weights = ag.ctrl.lastWeights;
+    const eps     = ag.ctrl.lastEps;
+    const U       = ag.ctrl.U;
+    const H       = ag.ctrl.H;
+    const K       = ag.ctrl.K;
+    const st      = ag.state;
+
+    // draw top 15 samples
+    const sorted = Array.from({length: K}, (_,i)=>i)
+                        .sort((a,b)=>weights[b]-weights[a])
+                        .slice(0, 15);
+
+    ctx.lineWidth = 0.7;
+    for (const kidx of sorted) {
+      let sx = st[0], sy = st[1], svx = st[2], svy = st[3];
+      ctx.strokeStyle = key === 'mppi'
+        ? `rgba(138,100,255,${weights[kidx]*12+0.04})`
+        : `rgba(100,200,255,${weights[kidx]*12+0.04})`;
+      ctx.beginPath();
+      const [px, py] = worldToCanvas(sx, sy);
+      ctx.moveTo(px, py);
+      for (let t = 0; t < Math.min(H, 20); t++) {
+        const ax = clip(U[t*2]   + (eps ? eps[kidx*H*2+t*2]   : 0), -2, 2);
+        const ay = clip(U[t*2+1] + (eps ? eps[kidx*H*2+t*2+1] : 0), -2, 2);
+        svx += ax*ENV.DT - ENV.DRAG*svx*ENV.DT;
+        svy += ay*ENV.DT - ENV.DRAG*svy*ENV.DT;
+        sx = clip(sx+svx*ENV.DT,-ENV.BOUND,ENV.BOUND);
+        sy = clip(sy+svy*ENV.DT,-ENV.BOUND,ENV.BOUND);
+        const [qx, qy] = worldToCanvas(sx, sy);
+        ctx.lineTo(qx, qy);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // trajectories
+  for (const key of drawKeys) {
+    const ag = simState.agents[key];
+    if (ag.traj.length < 2) continue;
+    ctx.strokeStyle = ag.color;
+    ctx.lineWidth   = 2;
+    ctx.shadowColor = ag.color;
+    ctx.shadowBlur  = 6;
+    ctx.beginPath();
+    for (let i = 0; i < ag.traj.length; i++) {
+      const [px, py] = worldToCanvas(ag.traj[i][0], ag.traj[i][1]);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // agents
+  for (const key of drawKeys) {
+    const ag = simState.agents[key];
+    if (!ag.state) continue;
+    const [ax, ay, sc] = worldToCanvas(ag.state[0], ag.state[1]);
+    const vx = ag.state[2], vy = ag.state[3];
+
+    // velocity arrow
+    const vscale = sc * 0.35;
+    const ex = ax + vx*vscale, ey = ay - vy*vscale;
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth   = 1.8;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke();
+    // arrowhead
+    const ang = Math.atan2(ey-ay, ex-ax);
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - 7*Math.cos(ang-0.4), ey - 7*Math.sin(ang-0.4));
+    ctx.lineTo(ex - 7*Math.cos(ang+0.4), ey - 7*Math.sin(ang+0.4));
+    ctx.closePath(); ctx.fillStyle='#00d4ff'; ctx.fill();
+
+    // agent circle
+    ctx.shadowColor = ag.color;
+    ctx.shadowBlur  = 14;
+    ctx.fillStyle   = '#fff';
+    ctx.strokeStyle = ag.color;
+    ctx.lineWidth   = 2.5;
+    ctx.beginPath(); ctx.arc(ax, ay, 7, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // label
+    if (mode === 'both') {
+      ctx.fillStyle = ag.color;
+      ctx.font      = `bold 9px 'Space Mono'`;
+      ctx.textAlign = 'center';
+      ctx.fillText(key.toUpperCase(), ax, ay - 13);
+    }
+  }
+
+  // request next frame for pulse animation when idle
+  if (!simState.running) {
+    requestAnimationFrame(() => { if (!simState.running) render(); });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MINI CHARTS
+// ═══════════════════════════════════════════════════════
+function drawMiniCharts() {
+  const mode = simState.mode;
+
+  // cost chart
+  {
+    const c = document.getElementById('chart-cost');
+    const cx = c.getContext('2d');
+    const W = c.clientWidth * devicePixelRatio || 220;
+    const H = 60;
+    c.width = W; c.height = H;
+    cx.clearRect(0,0,W,H);
+    cx.fillStyle = '#0d1117'; cx.fillRect(0,0,W,H);
+
+    const keys = mode === 'both' ? ['mppi','dial'] : [mode];
+    for (const key of keys) {
+      const ag = simState.agents[key];
+      const hist = ag.ctrl?.costHistory;
+      if (!hist || hist.length < 2) continue;
+      const n = hist.length;
+      const maxC = Math.max(...hist);
+      const minC = Math.min(...hist);
+      const rng  = maxC - minC || 1;
+
+      cx.strokeStyle = ag.color;
+      cx.lineWidth   = 1.5;
+      cx.shadowColor = ag.color;
+      cx.shadowBlur  = 4;
+      cx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const px = (i / (n-1)) * W;
+        const py = H - ((hist[i]-minC)/rng) * (H-8) - 4;
+        i===0 ? cx.moveTo(px,py) : cx.lineTo(px,py);
+      }
+      cx.stroke();
+      cx.shadowBlur = 0;
+    }
+  }
+
+  // sigma chart (DIAL only)
+  {
+    const c = document.getElementById('chart-sigma');
+    const cx = c.getContext('2d');
+    const W = c.clientWidth * devicePixelRatio || 220;
+    const H = 60;
+    c.width = W; c.height = H;
+    cx.clearRect(0,0,W,H);
+    cx.fillStyle = '#0d1117'; cx.fillRect(0,0,W,H);
+
+    const title = document.getElementById('chart2-title');
+
+    if (mode === 'mppi') {
+      title.textContent = 'MPPI: fixed σ per step';
+      const sigma = simState.agents.mppi.ctrl?.sigma || 0.9;
+      cx.strokeStyle = '#00e5ff'; cx.lineWidth = 1.5;
+      cx.setLineDash([4,4]);
+      cx.beginPath(); cx.moveTo(0, H/2); cx.lineTo(W, H/2); cx.stroke();
+      cx.setLineDash([]);
+      cx.fillStyle = 'rgba(0,229,255,0.7)';
+      cx.font = `11px 'Space Mono'`;
+      cx.textAlign = 'center';
+      cx.fillText(`σ = ${sigma.toFixed(2)}`, W/2, H/2 - 8);
+    } else {
+      title.textContent = 'DIAL: σ(h) annealing profile';
+      const ag = simState.agents.dial;
+      const sigmas = ag.ctrl?.lastSigmas || ag.ctrl?.sigmaSchedule(1);
+      if (sigmas) {
+        const n  = sigmas.length;
+        const maxS = Math.max(...sigmas);
+        const minS = Math.min(...sigmas);
+        const rng  = maxS - minS || 1;
+        cx.strokeStyle = '#39ff9a'; cx.lineWidth = 1.8;
+        cx.shadowColor = '#39ff9a'; cx.shadowBlur = 4;
+        cx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const px = (i/(n-1)) * W;
+          const py = H - ((sigmas[i]-minS)/rng)*(H-8) - 4;
+          i===0 ? cx.moveTo(px,py) : cx.lineTo(px,py);
+        }
+        cx.stroke(); cx.shadowBlur = 0;
+
+        // fill under
+        cx.fillStyle = 'rgba(57,255,154,0.07)';
+        cx.lineTo(W, H); cx.lineTo(0, H); cx.closePath(); cx.fill();
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════
+function updateUI() {
+  const mode    = simState.mode;
+  const ag      = simState.agents[mode === 'both' ? 'dial' : mode];
+  const state   = ag?.state;
+  const steps   = simState.stepCount;
+  const maxSteps= simState.maxSteps;
+
+  document.getElementById('st-steps').textContent = steps;
+  if (state) {
+    const dist = Math.hypot(state[0]-ENV.goal[0], state[1]-ENV.goal[1]);
+    document.getElementById('st-dist').textContent = dist.toFixed(2);
+    document.getElementById('st-x').textContent    = state[0].toFixed(2);
+    document.getElementById('st-y').textContent    = state[1].toFixed(2);
+    document.getElementById('st-spd').textContent  = Math.hypot(state[2],state[3]).toFixed(2);
+  }
+  document.getElementById('st-rew').textContent = simState.totalReward.toFixed(1);
+
+  const pct = Math.min(steps / maxSteps * 100, 100);
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-step').textContent = `${steps} / ${maxSteps}`;
+
+  const label = simState.running ? (mode === 'mppi' ? 'MPPI running' : mode === 'dial' ? 'DIAL-MPC running' : 'Both running') : (simState.goalReached ? '✓ GOAL REACHED' : 'IDLE');
+  document.getElementById('prog-label').textContent = label;
+}
+
+function getParams() {
+  return {
+    H:     parseInt(document.getElementById('sl-H').value),
+    K:     parseInt(document.getElementById('sl-K').value),
+    lam:   parseFloat(document.getElementById('sl-lam').value),
+    sigma: parseFloat(document.getElementById('sl-sigma').value),
+    N:     parseInt(document.getElementById('sl-N').value),
+    sbase: parseFloat(document.getElementById('sl-sbase').value),
+    b1:    parseFloat(document.getElementById('sl-b1').value),
+    b2:    parseFloat(document.getElementById('sl-b2').value),
+  };
+}
+
+function setAlgoInfo(mode) {
+  const el = document.getElementById('algo-info');
+  if (mode === 'mppi') {
+    el.innerHTML = `<strong>MPPI</strong> — Model Predictive Path Integral<br><br>
+Sample K noise sequences ε~N(0,σ²), rollout H steps, compute softmax weights:<br>
+<span class="formula">w_k = exp(-(J_k - β) / λ)
+U ← U + Σ w_k ε_k</span>
+Fixed σ across all horizon steps.`;
+  } else if (mode === 'dial') {
+    el.innerHTML = `<strong>DIAL-MPC</strong> — Diffusion-Inspired Annealing<br>
+<em>Xue et al., arXiv:2409.15610</em><br><br>
+N annealing iterations, σ decays via dual-loop schedule:<br>
+<span class="formula">Σ^i_{t+h} = exp[
+  -(N-i)/(β₁·N)   ← trajectory
+  -(H-h)/(β₂·H) ] ← action</span>
+Large σ → global coverage. Small σ → local convergence.`;
+  } else {
+    el.innerHTML = `<strong>Both</strong>: MPPI (cyan) and DIAL-MPC (green) run simultaneously on the same environment for direct comparison.<br><br>
+Watch how DIAL-MPC's annealing strategy navigates obstacles more effectively.`;
+  }
+}
+
+// ─── SLIDERS ─────────────────────────────────────────
+const sliders = [
+  ['sl-H',     'val-H',    v => v],
+  ['sl-K',     'val-K',    v => v],
+  ['sl-lam',   'val-lam',  v => parseFloat(v).toFixed(2)],
+  ['sl-sigma', 'val-sigma',v => parseFloat(v).toFixed(1)],
+  ['sl-N',     'val-N',    v => v],
+  ['sl-sbase', 'val-sbase',v => parseFloat(v).toFixed(1)],
+  ['sl-b1',    'val-b1',   v => parseFloat(v).toFixed(1)],
+  ['sl-b2',    'val-b2',   v => parseFloat(v).toFixed(1)],
+];
+for (const [sid, vid, fmt] of sliders) {
+  const sl = document.getElementById(sid);
+  const vl = document.getElementById(vid);
+  sl.addEventListener('input', () => {
+    vl.textContent = fmt(sl.value);
+    if (simState.running) resetSim();
+  });
+}
+
+// ─── ALGO TABS ────────────────────────────────────────
+document.querySelectorAll('.algo-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.algo-tab').forEach(t =>
+      t.classList.remove('active-mppi','active-dial','active-both'));
+    const algo = tab.dataset.algo;
+    tab.classList.add(
+      algo === 'mppi' ? 'active-mppi' : algo === 'dial' ? 'active-dial' : 'active-both'
+    );
+    simState.mode = algo;
+    setAlgoInfo(algo);
+    resetSim();
+  });
+});
+
+// ─── BUTTONS ─────────────────────────────────────────
+document.getElementById('btn-start').addEventListener('click', () => {
+  if (simState.running) {
+    simState.running = false;
+    cancelAnimationFrame(simState.raf);
+    document.getElementById('btn-start').textContent = '▶ RESUME';
+  } else {
+    if (simState.goalReached || simState.stepCount >= simState.maxSteps) resetSim();
+    simState.running = true;
+    document.getElementById('btn-start').textContent = '⏸ PAUSE';
+    simState.raf = requestAnimationFrame(tick);
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', resetSim);
+
+// ─── RESIZE ──────────────────────────────────────────
+window.addEventListener('resize', resizeCanvas);
+
+// ─── BOOT ────────────────────────────────────────────
+resizeCanvas();
+makeControllers();
+setAlgoInfo('mppi');
+for (const [, ag] of Object.entries(simState.agents)) {
+  ag.state = new Float64Array([ENV.start[0], ENV.start[1], 0, 0]);
+}
+render();
+drawMiniCharts();
+</script>
+</body>
+</html>
