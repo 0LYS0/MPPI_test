@@ -104,6 +104,25 @@ input[type=range]::-webkit-slider-thumb {
   background:var(--accent1); box-shadow:0 0 6px var(--accent1); cursor:pointer;
 }
 .ds::-webkit-slider-thumb { background:var(--accent2); box-shadow:0 0 6px var(--accent2); }
+.ps::-webkit-slider-thumb { background:#b084ff; box-shadow:0 0 6px #b084ff; }
+.as::-webkit-slider-thumb { background:#f0a0ff; box-shadow:0 0 6px #f0a0ff; }
+.sgsl::-webkit-slider-thumb { background:#67e8f9; box-shadow:0 0 6px #67e8f9; }
+/* seed input */
+.seed-row { display:flex; gap:5px; align-items:center; }
+.seed-inp {
+  flex:1; background:var(--panel); border:1px solid var(--border2); border-radius:var(--r);
+  color:var(--text); font-family:var(--mono); font-size:11px; padding:6px 8px;
+  outline:none; transition:border-color .15s;
+}
+.seed-inp:focus { border-color:var(--accent1); }
+.seed-inp::-webkit-inner-spin-button { -webkit-appearance:none; }
+/* goal coords badge */
+.goal-badge {
+  display:flex; align-items:center; gap:6px;
+  padding:5px 8px; border-radius:var(--r);
+  border:1px solid rgba(57,255,154,.3); background:rgba(57,255,154,.06);
+  font-size:10px; color:var(--accent2);
+}
 /* BUTTONS */
 .bg2 { display:flex; gap:5px; flex-wrap:wrap; }
 .btn {
@@ -253,6 +272,13 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
         <div class="pr"><div class="ph"><span class="pn">Horizon H</span><span class="pv" id="v-H">30</span></div><input type="range" id="s-H" min="10" max="50" value="30" step="5"/></div>
         <div class="pr"><div class="ph"><span class="pn">Samples K</span><span class="pv" id="v-K">400</span></div><input type="range" id="s-K" min="100" max="1000" value="400" step="100"/></div>
         <div class="pr"><div class="ph"><span class="pn">Temperature λ</span><span class="pv" id="v-lam">0.05</span></div><input type="range" id="s-lam" min="0.01" max="0.5" value="0.05" step="0.01"/></div>
+        <div class="pr">
+          <div class="ph"><span class="pn">Alpha α</span><span class="pv" id="v-alpha" style="color:#f0a0ff">1.00</span></div>
+          <input class="as" type="range" id="s-alpha" min="0" max="1" value="1" step="0.05"/>
+          <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-top:2px">
+            <span>0 · explore</span><span>γ=<span id="v-gamma">0.00</span></span><span>exploit · 1</span>
+          </div>
+        </div>
       </div>
     </div>
     <div>
@@ -270,9 +296,64 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
         <div class="pr"><div class="ph"><span class="pn">β₂ (action)</span><span class="pv d" id="v-b2">0.5</span></div><input class="ds" type="range" id="s-b2" min="0.1" max="2.0" value="0.5" step="0.1"/></div>
       </div>
     </div>
+    <div>
+      <div class="sec" style="color:#b084ff">Physics</div>
+      <div class="pg">
+        <div class="pr">
+          <div class="ph"><span class="pn">Max Velocity</span><span class="pv" id="v-mv" style="color:#b084ff">4.0</span></div>
+          <input class="ps" type="range" id="s-mv" min="0.5" max="10" value="4" step="0.5"/>
+        </div>
+        <div class="pr">
+          <div class="ph"><span class="pn">Max Accel</span><span class="pv" id="v-ma" style="color:#b084ff">2.0</span></div>
+          <input class="ps" type="range" id="s-ma" min="0.5" max="6" value="2" step="0.5"/>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="sec" style="color:#67e8f9">Smoothing (SG Filter)</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <button class="btn" id="btn-sg" style="flex:1;font-size:10px">SG: OFF</button>
+        <span style="font-size:9px;color:var(--muted)" id="sg-status">Williams et al. §III-D3</span>
+      </div>
+      <div class="pg" id="sg-params" style="opacity:0.3;pointer-events:none;transition:opacity .2s">
+        <div class="pr">
+          <div class="ph">
+            <span class="pn">Window (odd)</span>
+            <span class="pv" id="v-sgw" style="color:#67e8f9">7</span>
+          </div>
+          <input class="sgsl" type="range" id="s-sgw" min="3" max="15" value="7" step="2"/>
+        </div>
+        <div class="pr">
+          <div class="ph">
+            <span class="pn">Poly Order</span>
+            <span class="pv" id="v-sgo" style="color:#67e8f9">3</span>
+          </div>
+          <input class="sgsl" type="range" id="s-sgo" min="1" max="6" value="3" step="1"/>
+          <div style="font-size:8px;color:var(--muted);margin-top:2px">
+            must be &lt; window size
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="bg2">
       <button class="btn primary" id="btn-start">▶ START</button>
       <button class="btn danger"  id="btn-reset">↺ RESET</button>
+    </div>
+    <div>
+      <div class="sec">Random Seed</div>
+      <div class="seed-row">
+        <input class="seed-inp" type="number" id="inp-seed" value="42" min="0" max="9999999" placeholder="seed"/>
+        <button class="btn" id="btn-rnd" title="Random seed" style="flex:0;padding:7px 10px">🎲</button>
+        <button class="btn" id="btn-apply-seed" style="flex:0;padding:7px 8px;font-size:9px">APPLY</button>
+      </div>
+    </div>
+    <div>
+      <div class="sec">Goal Position <span style="color:var(--muted);font-size:8px">— drag on canvas</span></div>
+      <div class="goal-badge">
+        <span style="font-size:10px">🎯</span>
+        <span id="goal-coords">(7.0, 7.0)</span>
+        <button class="btn" id="btn-reset-goal" style="flex:0;padding:3px 7px;font-size:9px;margin-left:auto">↺</button>
+      </div>
     </div>
     <div>
       <div class="sec">Legend</div>
@@ -282,7 +363,15 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
         <div class="lr"><div class="ld" style="background:#ff4d6d"></div>Obstacle — drag body / resize ↔</div>
         <div class="lr"><div class="ll" style="background:var(--accent1)"></div>MPPI trajectory</div>
         <div class="lr"><div class="ll" style="background:var(--accent2)"></div>DIAL-MPC trajectory</div>
-        <div class="lr"><div class="ll" style="background:rgba(138,100,255,.7)"></div>Sample rollouts</div>
+        <div class="lr">
+          <div style="width:18px;height:2px;flex-shrink:0;background:linear-gradient(90deg,#00e5ff,#ffdc00,#ff3c3c)"></div>
+          Rollout cost (low→high)
+        </div>
+        <div class="lr"><div class="ll" style="background:#fff;box-shadow:0 0 4px #0ff"></div>Best rollout</div>
+        <div class="lr">
+          <div style="width:18px;height:0;flex-shrink:0;border-top:2px dashed rgba(255,255,255,0.5)"></div>
+          Exploration rollout (α&lt;1)
+        </div>
       </div>
     </div>
   </aside>
@@ -309,19 +398,25 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
         <div class="sb"><span class="sl">Pos X</span><span class="sv" id="st-x">—</span></div>
         <div class="sb"><span class="sl">Pos Y</span><span class="sv" id="st-y">—</span></div>
         <div class="sb"><span class="sl">Speed</span><span class="sv" id="st-v">—</span></div>
+        <div class="sb" style="grid-column:span 2">
+          <span class="sl">Speed Gauge</span>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+            <div style="flex:1;height:5px;background:var(--border2);border-radius:3px;overflow:hidden">
+              <div id="spd-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),var(--warn));border-radius:3px;transition:width .08s"></div>
+            </div>
+            <span style="font-size:9px;color:var(--muted);white-space:nowrap" id="spd-max-lbl">/ 4.0</span>
+          </div>
+        </div>
         <div class="sb"><span class="sl">Σ Reward</span><span class="sv gn" id="st-r">0.0</span></div>
       </div>
     </div>
     <div class="cw"><div class="ct">Avg Sample Cost</div><canvas class="mini" id="ch-cost"></canvas></div>
     <div class="cw"><div class="ct" id="ch2t">Noise σ Profile</div><canvas class="mini" id="ch-sig"></canvas></div>
 
-    <!-- OBSTACLE EDITOR -->
     <div>
-      <div class="sec">Obstacle Editor</div>
-      <div class="ebadge hidden" id="ebadge"><div class="edot"></div><span>EDIT MODE — drag / resize ↔</span></div>
+      <div class="sec">Obstacles</div>
     </div>
     <div class="bg2">
-      <button class="btn warn" id="btn-edit">✎ EDIT</button>
       <button class="btn ok"   id="btn-add">+ ADD</button>
       <button class="btn"      id="btn-robs">↺ DEFAULT</button>
     </div>
@@ -338,13 +433,118 @@ canvas.mini { width:100%; height:54px; display:block; border-radius:3px; }
 // ═══════════════════════════════════════════════════════
 // MATH
 // ═══════════════════════════════════════════════════════
-function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+// ── Seeded PRNG (mulberry32) ──────────────────────────
+let _seed=42;
+function setSeed(s){_seed=(s>>>0)||1;}
+function _rng(){
+  let t=(_seed+=0x6D2B79F5)|0;
+  t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);
+  return((t^t>>>14)>>>0)/4294967296;
+}
+function randn(){
+  let u=0,v=0;
+  while(!u)u=_rng();while(!v)v=_rng();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
 function clip(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+
+// ── Cost colormap: low(0)=cool → mid=yellow → high(1)=red ──
+function costColor(t, alpha){
+  // t: 0(best/low cost) → 1(worst/high cost)
+  let r,g,b;
+  if(t<0.5){
+    const f=t*2;            // 0→1 in first half
+    r=Math.round(f*255);    // 0→255
+    g=Math.round(220+f*(255-220)); // 220→255 (stays bright)
+    b=Math.round(255*(1-f));// 255→0
+  } else {
+    const f=(t-0.5)*2;      // 0→1 in second half
+    r=255;
+    g=Math.round(255*(1-f));// 255→0
+    b=0;
+  }
+  return`rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+}
+
+// ═══════════════════════════════════════════════════════
+// SAVITZKY-GOLAY SMOOTHING
+// ═══════════════════════════════════════════════════════
+let sgEnabled = false;
+let sgWin     = 7;    // window size (odd)
+let sgOrder   = 3;    // polynomial order (< sgWin)
+let _sgCoeffs = null; // cached coefficients [winSize]
+
+// Gauss-Jordan matrix inversion (in-place augmented matrix)
+function _invertMatrix(M) {
+  const n = M.length;
+  const A = M.map((r,i) => [...r, ...Array.from({length:n},(_,j)=>i===j?1:0)]);
+  for(let col=0;col<n;col++){
+    let pivot=col;
+    for(let row=col+1;row<n;row++) if(Math.abs(A[row][col])>Math.abs(A[pivot][col])) pivot=row;
+    [A[col],A[pivot]]=[A[pivot],A[col]];
+    const d=A[col][col];
+    if(Math.abs(d)<1e-12) return null; // singular
+    for(let j=0;j<2*n;j++) A[col][j]/=d;
+    for(let row=0;row<n;row++){
+      if(row===col) continue;
+      const f=A[row][col];
+      for(let j=0;j<2*n;j++) A[row][j]-=f*A[col][j];
+    }
+  }
+  return A.map(r=>r.slice(n));
+}
+
+// Compute SG convolution coefficients (smoothing, derivative=0)
+function computeSGCoeffs(winSize, polyOrder) {
+  winSize = winSize%2===0 ? winSize+1 : winSize; // force odd
+  polyOrder = Math.min(polyOrder, winSize-1);
+  const m = Math.floor(winSize/2);
+  const n = 2*m+1;
+  // Vandermonde matrix A[i][j] = (i-m)^j
+  const A = Array.from({length:n}, (_,i) =>
+    Array.from({length:polyOrder+1}, (_,j) => Math.pow(i-m, j))
+  );
+  // AtA = A^T A
+  const AtA = Array.from({length:polyOrder+1}, (_,j1) =>
+    Array.from({length:polyOrder+1}, (_,j2) =>
+      A.reduce((s,row) => s + row[j1]*row[j2], 0)
+    )
+  );
+  const inv = _invertMatrix(AtA);
+  if(!inv) return null;
+  // coeffs[i] = Σ_j inv[0][j] * A[i][j]  (first row = constant term = smoothed value)
+  return Array.from({length:n}, (_,i) =>
+    inv[0].reduce((s,v,j) => s + v*A[i][j], 0)
+  );
+}
+
+// Apply SG filter to control sequence U[H*2] in-place
+function applySGSmoothing(U, H, coeffs) {
+  if(!coeffs || coeffs.length === 0) return;
+  const w = coeffs.length, m = Math.floor(w/2);
+  const tmp = new Float64Array(H*2);
+  for(let t=0;t<H;t++){
+    let s0=0, s1=0;
+    for(let j=0;j<w;j++){
+      const tj = Math.max(0, Math.min(H-1, t-m+j));
+      s0 += coeffs[j]*U[tj*2];
+      s1 += coeffs[j]*U[tj*2+1];
+    }
+    tmp[t*2]=s0; tmp[t*2+1]=s1;
+  }
+  U.set(tmp);
+}
+
+function rebuildSGCoeffs(){
+  if(!sgEnabled){ _sgCoeffs=null; return; }
+  const c = computeSGCoeffs(sgWin, sgOrder);
+  _sgCoeffs = c && c.length > 0 ? c : null;
+}
 
 // ═══════════════════════════════════════════════════════
 // ENVIRONMENT
 // ═══════════════════════════════════════════════════════
-const ENV={DT:.05,DRAG:.15,MAX_SPEED:4,BOUND:10,goal:[7,7],start:[-7,-7]};
+const ENV={DT:.05,DRAG:.15,MAX_SPEED:4,MAX_ACC:2,BOUND:10,goal:[7,7],start:[-7,-7]};
 
 const DEF_OBS=[
   {pos:[3,3],r:1.2},{pos:[5,1.5],r:1},{pos:[1.5,6],r:.9},
@@ -368,7 +568,7 @@ function batchDyn(st,ac,K){
   for(let k=0;k<K;k++){
     const i4=k*4,i2=k*2;
     let x=st[i4],y=st[i4+1],vx=st[i4+2],vy=st[i4+3];
-    let ax=clip(ac[i2],-2,2),ay=clip(ac[i2+1],-2,2);
+    let ax=clip(ac[i2],-ENV.MAX_ACC,ENV.MAX_ACC),ay=clip(ac[i2+1],-ENV.MAX_ACC,ENV.MAX_ACC);
     vx+=ax*ENV.DT-ENV.DRAG*vx*ENV.DT; vy+=ay*ENV.DT-ENV.DRAG*vy*ENV.DT;
     const sp=Math.sqrt(vx*vx+vy*vy);
     if(sp>ENV.MAX_SPEED){vx*=ENV.MAX_SPEED/sp;vy*=ENV.MAX_SPEED/sp;}
@@ -406,30 +606,57 @@ function tCost(st,K){
 class MPPI{
   constructor(p){
     this.H=p.H||30;this.K=p.K||400;this.lam=p.lam||.05;this.sigma=p.sigma||.9;
+    this.alpha=p.alpha!=null?p.alpha:1;          // α ∈ [0,1]
     this.U=new Float64Array(this.H*2);this.lW=null;this.lE=null;this.ch=[];this.label='MPPI';
   }
   reset(){this.U.fill(0);this.ch=[];}
   compute(s){
-    const{H,K,lam,sigma}=this;
+    const{H,K,lam,sigma,alpha}=this;
+    const gamma=lam*(1-alpha);                   // γ = λ(1−α)
+    const inv_sig2=1/(sigma*sigma);              // 1/σ²
+    const nExplore=Math.floor((1-alpha)*K);      // pure-noise 샘플 수 (Algorithm 1)
     const eps=new Float64Array(K*H*2);for(let i=0;i<eps.length;i++)eps[i]=randn()*sigma;
     const st=new Float64Array(K*4);
     for(let k=0;k<K;k++){st[k*4]=s[0];st[k*4+1]=s[1];st[k*4+2]=s[2];st[k*4+3]=s[3];}
     const co=new Float64Array(K),ac=new Float64Array(K*2);
     for(let t=0;t<H;t++){
-      for(let k=0;k<K;k++){ac[k*2]=clip(this.U[t*2]+eps[k*H*2+t*2],-2,2);ac[k*2+1]=clip(this.U[t*2+1]+eps[k*H*2+t*2+1],-2,2);}
-      const ns=batchDyn(st,ac,K);const rc=rCost(ns,K);for(let k=0;k<K;k++)co[k]+=rc[k];st.set(ns);
+      const u0=this.U[t*2],u1=this.U[t*2+1];
+      for(let k=0;k<K;k++){
+        const e0=eps[k*H*2+t*2],e1=eps[k*H*2+t*2+1];
+        if(k<nExplore){
+          // Algorithm 1: k < (1-α)K → pure noise, no warm start
+          ac[k*2]=clip(e0,-ENV.MAX_ACC,ENV.MAX_ACC);
+          ac[k*2+1]=clip(e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+        } else {
+          // Algorithm 1: k ≥ (1-α)K → warm start (U + ε)
+          ac[k*2]=clip(u0+e0,-ENV.MAX_ACC,ENV.MAX_ACC);
+          ac[k*2+1]=clip(u1+e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+        }
+      }
+      const ns=batchDyn(st,ac,K);const rc=rCost(ns,K);
+      // control cost: γ/σ² · û_t · ε_k_t  (paper eq.22, decoupled form)
+      if(gamma>0){
+        for(let k=0;k<K;k++)
+          co[k]+=rc[k]+gamma*inv_sig2*(u0*eps[k*H*2+t*2]+u1*eps[k*H*2+t*2+1]);
+      } else {
+        for(let k=0;k<K;k++) co[k]+=rc[k];
+      }
+      st.set(ns);
     }
     const tc=tCost(st,K);for(let k=0;k<K;k++)co[k]+=tc[k];
+    this.lC=co.slice();                          // ← 비용 스냅샷 저장
     let b=Infinity;for(let k=0;k<K;k++)if(co[k]<b)b=co[k];
     const w=new Float64Array(K);let ws=0;
     for(let k=0;k<K;k++){w[k]=Math.exp(-(co[k]-b)/lam);ws+=w[k];}
     for(let k=0;k<K;k++)w[k]/=(ws+1e-8);
     for(let t=0;t<H;t++){
       let d0=0,d1=0;for(let k=0;k<K;k++){d0+=w[k]*eps[k*H*2+t*2];d1+=w[k]*eps[k*H*2+t*2+1];}
-      this.U[t*2]=clip(this.U[t*2]+d0,-2,2);this.U[t*2+1]=clip(this.U[t*2+1]+d1,-2,2);
+      this.U[t*2]=clip(this.U[t*2]+d0,-ENV.MAX_ACC,ENV.MAX_ACC);this.U[t*2+1]=clip(this.U[t*2+1]+d1,-ENV.MAX_ACC,ENV.MAX_ACC);
     }
     let ac2=0;for(let k=0;k<K;k++)ac2+=co[k];this.ch.push(ac2/K);
     this.lW=w;this.lE=eps;
+    // Savitzky-Golay smoothing (if enabled)
+    applySGSmoothing(this.U, H, _sgCoeffs);
     const a0=this.U[0],a1=this.U[1];
     for(let t=0;t<H-1;t++){this.U[t*2]=this.U[(t+1)*2];this.U[t*2+1]=this.U[(t+1)*2+1];}
     this.U[(H-1)*2]=0;this.U[(H-1)*2+1]=0;
@@ -444,6 +671,7 @@ class DIAL{
   constructor(p){
     this.H=p.H||30;this.K=p.K||400;this.N=p.N||5;this.lam=p.lam||.05;
     this.sb=p.sbase||1.2;this.b1=p.beta1||.6;this.b2=p.beta2||.5;
+    this.alpha=p.alpha!=null?p.alpha:1;          // α ∈ [0,1]
     this.U=new Float64Array(this.H*2);this.lW=null;this.lE=null;this.lS=null;this.ch=[];this.label='DIAL-MPC';
   }
   reset(){this.U.fill(0);this.ch=[];}
@@ -453,7 +681,10 @@ class DIAL{
     return s;
   }
   compute(s){
-    const{H,K,N,lam}=this;let aC=0,it=0,lW=null,lE=null;
+    const{H,K,N,lam,alpha}=this;
+    const gamma=lam*(1-alpha);                   // γ = λ(1−α)
+    const nExplore=Math.floor((1-alpha)*K);      // pure-noise 샘플 수 (Algorithm 1)
+    let aC=0,it=0,lW=null,lE=null;
     for(let i=N;i>=1;i--){
       const sig=this.sched(i);
       const eps=new Float64Array(K*H*2);
@@ -462,18 +693,42 @@ class DIAL{
       for(let k=0;k<K;k++){st[k*4]=s[0];st[k*4+1]=s[1];st[k*4+2]=s[2];st[k*4+3]=s[3];}
       const co=new Float64Array(K),ac=new Float64Array(K*2);
       for(let t=0;t<H;t++){
-        for(let k=0;k<K;k++){ac[k*2]=clip(this.U[t*2]+eps[k*H*2+t*2],-2,2);ac[k*2+1]=clip(this.U[t*2+1]+eps[k*H*2+t*2+1],-2,2);}
-        const ns=batchDyn(st,ac,K);const rc=rCost(ns,K);for(let k=0;k<K;k++)co[k]+=rc[k];st.set(ns);
+        const u0=this.U[t*2],u1=this.U[t*2+1];
+        for(let k=0;k<K;k++){
+          const e0=eps[k*H*2+t*2],e1=eps[k*H*2+t*2+1];
+          if(k<nExplore){
+            // Algorithm 1: k < (1-α)K → pure noise, no warm start
+            ac[k*2]=clip(e0,-ENV.MAX_ACC,ENV.MAX_ACC);
+            ac[k*2+1]=clip(e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+          } else {
+            // Algorithm 1: k ≥ (1-α)K → warm start (U + ε)
+            ac[k*2]=clip(u0+e0,-ENV.MAX_ACC,ENV.MAX_ACC);
+            ac[k*2+1]=clip(u1+e1,-ENV.MAX_ACC,ENV.MAX_ACC);
+          }
+        }
+        const ns=batchDyn(st,ac,K);const rc=rCost(ns,K);
+        // control cost: γ/σ_t² · û_t · ε_k_t  (step-wise σ for DIAL)
+        if(gamma>0){
+          const sv=sig[t],inv_s2=1/(sv*sv);
+          for(let k=0;k<K;k++)
+            co[k]+=rc[k]+gamma*inv_s2*(u0*eps[k*H*2+t*2]+u1*eps[k*H*2+t*2+1]);
+        } else {
+          for(let k=0;k<K;k++) co[k]+=rc[k];
+        }
+        st.set(ns);
       }
       const tc=tCost(st,K);for(let k=0;k<K;k++)co[k]+=tc[k];
+      if(i===1) this.lC=co.slice();             // ← 마지막 이터레이션 비용 저장
       let b=Infinity;for(let k=0;k<K;k++)if(co[k]<b)b=co[k];
       const w=new Float64Array(K);let ws=0;
       for(let k=0;k<K;k++){w[k]=Math.exp(-(co[k]-b)/lam);ws+=w[k];}
       for(let k=0;k<K;k++)w[k]/=(ws+1e-8);
       for(let t=0;t<H;t++){
         let d0=0,d1=0;for(let k=0;k<K;k++){d0+=w[k]*eps[k*H*2+t*2];d1+=w[k]*eps[k*H*2+t*2+1];}
-        this.U[t*2]=clip(this.U[t*2]+d0,-2,2);this.U[t*2+1]=clip(this.U[t*2+1]+d1,-2,2);
+        this.U[t*2]=clip(this.U[t*2]+d0,-ENV.MAX_ACC,ENV.MAX_ACC);this.U[t*2+1]=clip(this.U[t*2+1]+d1,-ENV.MAX_ACC,ENV.MAX_ACC);
       }
+      // SG smoothing after each annealing iteration
+      applySGSmoothing(this.U, H, _sgCoeffs);
       let c2=0;for(let k=0;k<K;k++)c2+=co[k];aC+=c2/K;it++;
       lW=w;lE=eps;if(i===1)this.lS=sig;
     }
@@ -502,6 +757,7 @@ function gp(){
     H:+document.getElementById('s-H').value,
     K:+document.getElementById('s-K').value,
     lam:+document.getElementById('s-lam').value,
+    alpha:+document.getElementById('s-alpha').value,
     sigma:+document.getElementById('s-sig').value,
     N:+document.getElementById('s-N').value,
     sbase:+document.getElementById('s-sb').value,
@@ -512,13 +768,16 @@ function gp(){
 
 function makeCtrl(){
   const p=gp();
-  sim.agents.mppi.ctrl=new MPPI({H:p.H,K:p.K,lam:p.lam,sigma:p.sigma});
-  sim.agents.dial.ctrl=new DIAL({H:p.H,K:p.K,N:p.N,lam:p.lam,sbase:p.sbase,beta1:p.beta1,beta2:p.beta2});
+  sim.agents.mppi.ctrl=new MPPI({H:p.H,K:p.K,lam:p.lam,sigma:p.sigma,alpha:p.alpha});
+  sim.agents.dial.ctrl=new DIAL({H:p.H,K:p.K,N:p.N,lam:p.lam,sbase:p.sbase,beta1:p.beta1,beta2:p.beta2,alpha:p.alpha});
 }
 
 function resetSim(){
   cancelAnimationFrame(sim.raf);
   sim.running=false;sim.steps=0;sim.totalRew=0;sim.goalReached=false;
+  // re-seed PRNG
+  const sv=parseInt(document.getElementById('inp-seed').value)||42;
+  setSeed(sv);
   for(const ag of Object.values(sim.agents)){
     ag.state=new Float64Array([ENV.start[0],ENV.start[1],0,0]);
     ag.traj=[];ag.done=false;if(ag.ctrl)ag.ctrl.reset();
@@ -571,12 +830,16 @@ function resize(){
 }
 
 // ═══════════════════════════════════════════════════════
-// OBSTACLE INTERACTION
+// GOAL + OBSTACLE INTERACTION
 // ═══════════════════════════════════════════════════════
-let editMode=false, selObs=-1, drag=null;
-const RH=10; // resize handle px radius
+let selObs=-1, drag=null;
+const RH=10;
 
 function rHandle(o){const s=sc();const[cx,cy]=w2c(o.pos[0],o.pos[1]);return[cx+o.r*s,cy];}
+
+function hitGoal(wx,wy){
+  return Math.hypot(wx-ENV.goal[0],wy-ENV.goal[1])<0.8;
+}
 
 function hitObs(wx,wy){
   const s=sc();
@@ -588,8 +851,8 @@ function hitObs(wx,wy){
 }
 
 function hitResize(mx,my){
+  // check all obstacles (not just selected)
   for(let i=OBS.length-1;i>=0;i--){
-    if(i!==selObs)continue;
     const[hx,hy]=rHandle(OBS[i]);
     if(Math.hypot(mx-hx,my-hy)<RH+4)return i;
   }
@@ -600,11 +863,20 @@ const TIP=document.getElementById('tip');
 function showTip(x,y,txt){TIP.style.left=x+'px';TIP.style.top=y+'px';TIP.textContent=txt;TIP.classList.add('show');}
 function hideTip(){TIP.classList.remove('show');}
 
+function updateGoalLabel(){
+  const el=document.getElementById('goal-coords');
+  if(el) el.textContent=`(${ENV.goal[0].toFixed(1)}, ${ENV.goal[1].toFixed(1)})`;
+}
+
 CVS.addEventListener('mousedown',e=>{
-  if(!editMode)return;
   const r=CVS.getBoundingClientRect();
   const mx=e.clientX-r.left,my=e.clientY-r.top;
   const[wx,wy]=c2w(mx,my);
+
+  if(hitGoal(wx,wy)){
+    drag={type:'goal',swx:wx,swy:wy,ox:ENV.goal[0],oy:ENV.goal[1]};
+    CW.className='canvas-area ed';return;
+  }
   const ri=hitResize(mx,my);
   if(ri>=0){drag={type:'resize',idx:ri,origR:OBS[ri].r};CW.className='canvas-area er';return;}
   const idx=hitObs(wx,wy);
@@ -616,11 +888,17 @@ CVS.addEventListener('mousedown',e=>{
 });
 
 CVS.addEventListener('mousemove',e=>{
-  if(!editMode)return;
   const r=CVS.getBoundingClientRect();
   const mx=e.clientX-r.left,my=e.clientY-r.top;
   const[wx,wy]=c2w(mx,my);
   if(drag){
+    if(drag.type==='goal'){
+      ENV.goal[0]=clip(drag.ox+(wx-drag.swx),-ENV.BOUND+.5,ENV.BOUND-.5);
+      ENV.goal[1]=clip(drag.oy+(wy-drag.swy),-ENV.BOUND+.5,ENV.BOUND-.5);
+      updateGoalLabel();
+      showTip(mx+10,my-28,`GOAL (${ENV.goal[0].toFixed(1)}, ${ENV.goal[1].toFixed(1)})`);
+      render();return;
+    }
     const o=OBS[drag.idx];
     if(drag.type==='move'){
       o.pos[0]=clip(drag.ox+(wx-drag.swx),-ENV.BOUND+o.r,ENV.BOUND-o.r);
@@ -633,31 +911,50 @@ CVS.addEventListener('mousemove',e=>{
     }
     renderObsList();render();return;
   }
+  // hover cursors
+  if(hitGoal(wx,wy)){CW.className='canvas-area eh';showTip(mx+10,my-28,`GOAL — drag to move`);return;}
   const ri=hitResize(mx,my);
-  if(ri>=0){CW.className='canvas-area er';const o=OBS[ri];showTip(mx+10,my-28,`Obs ${ri+1}: resize`);return;}
+  if(ri>=0){CW.className='canvas-area er';const o=OBS[ri];showTip(mx+10,my-28,`Obs ${ri+1}: resize ↔`);return;}
   const idx=hitObs(wx,wy);
   if(idx>=0){
     CW.className='canvas-area eh';
     const o=OBS[idx];showTip(mx+10,my-28,`Obs ${idx+1}: (${o.pos[0].toFixed(1)},${o.pos[1].toFixed(1)})  r=${o.r.toFixed(2)}`);
-  } else {CW.className='canvas-area ei';hideTip();}
+  } else {CW.className='canvas-area';hideTip();}
 });
 
-CVS.addEventListener('mouseup',()=>{if(drag){drag=null;CW.className='canvas-area ei';}});
-CVS.addEventListener('mouseleave',()=>{drag=null;hideTip();if(editMode)CW.className='canvas-area ei';});
+CVS.addEventListener('mouseup',()=>{
+  if(drag){
+    if(drag.type==='goal'||drag.type==='resize') resetSim();
+    drag=null;CW.className='canvas-area';
+  }
+});
+CVS.addEventListener('mouseleave',()=>{drag=null;hideTip();CW.className='canvas-area';});
 
 // touch
 function tp(e){const r=CVS.getBoundingClientRect();return{mx:e.touches[0].clientX-r.left,my:e.touches[0].clientY-r.top};}
 CVS.addEventListener('touchstart',e=>{
-  if(!editMode)return;e.preventDefault();
   const{mx,my}=tp(e);const[wx,wy]=c2w(mx,my);
+  if(hitGoal(wx,wy)){
+    e.preventDefault();
+    drag={type:'goal',swx:wx,swy:wy,ox:ENV.goal[0],oy:ENV.goal[1]};return;
+  }
   const ri=hitResize(mx,my);
-  if(ri>=0){drag={type:'resize',idx:ri,origR:OBS[ri].r};return;}
+  if(ri>=0){e.preventDefault();drag={type:'resize',idx:ri,origR:OBS[ri].r};return;}
   const idx=hitObs(wx,wy);
-  if(idx>=0){selObs=idx;drag={type:'move',idx,swx:wx,swy:wy,ox:OBS[idx].pos[0],oy:OBS[idx].pos[1]};renderObsList();render();}
+  if(idx>=0){
+    e.preventDefault();
+    selObs=idx;drag={type:'move',idx,swx:wx,swy:wy,ox:OBS[idx].pos[0],oy:OBS[idx].pos[1]};
+    renderObsList();render();
+  }
 },{passive:false});
 CVS.addEventListener('touchmove',e=>{
-  if(!editMode||!drag)return;e.preventDefault();
+  if(!drag)return;e.preventDefault();
   const{mx,my}=tp(e);const[wx,wy]=c2w(mx,my);
+  if(drag.type==='goal'){
+    ENV.goal[0]=clip(drag.ox+(wx-drag.swx),-ENV.BOUND+.5,ENV.BOUND-.5);
+    ENV.goal[1]=clip(drag.oy+(wy-drag.swy),-ENV.BOUND+.5,ENV.BOUND-.5);
+    updateGoalLabel();render();return;
+  }
   const o=OBS[drag.idx];
   if(drag.type==='move'){
     o.pos[0]=clip(drag.ox+(wx-drag.swx),-ENV.BOUND+o.r,ENV.BOUND-o.r);
@@ -668,7 +965,10 @@ CVS.addEventListener('touchmove',e=>{
   }
   renderObsList();render();
 },{passive:false});
-CVS.addEventListener('touchend',()=>{drag=null;});
+CVS.addEventListener('touchend',()=>{
+  if(drag&&(drag.type==='goal'||drag.type==='resize')) resetSim();
+  drag=null;
+});
 
 // ═══════════════════════════════════════════════════════
 // RENDER
@@ -718,30 +1018,28 @@ function render(){
     CTX.textAlign='center';CTX.textBaseline='middle';
     CTX.fillText(i+1,cx,cy);CTX.textBaseline='alphabetic';
 
-    if(editMode){
-      // selection ring
-      if(sel){
-        CTX.strokeStyle='rgba(245,166,35,.9)';CTX.lineWidth=1.8;CTX.setLineDash([5,4]);
-        CTX.beginPath();CTX.arc(cx,cy,r+6,0,Math.PI*2);CTX.stroke();CTX.setLineDash([]);
-      }
-
-      // resize handle
-      const[hx,hy]=rHandle(o);
-      CTX.fillStyle=sel?'#f5a623':'rgba(245,166,35,.55)';
-      CTX.strokeStyle=sel?'#fff':'rgba(255,255,255,.4)';
-      CTX.lineWidth=1.5;
-      if(sel){CTX.shadowColor='#f5a623';CTX.shadowBlur=8;}
-      CTX.beginPath();CTX.arc(hx,hy,RH*(sel?1:.75),0,Math.PI*2);CTX.fill();CTX.stroke();CTX.shadowBlur=0;
-
-      // ↔ icon
-      CTX.fillStyle='rgba(13,17,23,.9)';
-      CTX.font=`bold ${RH}px Arial`;CTX.textAlign='center';CTX.textBaseline='middle';
-      CTX.fillText('↔',hx,hy+.5);CTX.textBaseline='alphabetic';
-
-      // guide line
-      CTX.strokeStyle='rgba(245,166,35,.25)';CTX.lineWidth=.7;CTX.setLineDash([3,3]);
-      CTX.beginPath();CTX.moveTo(cx,cy);CTX.lineTo(hx,hy);CTX.stroke();CTX.setLineDash([]);
+    // selection ring
+    if(sel){
+      CTX.strokeStyle='rgba(245,166,35,.9)';CTX.lineWidth=1.8;CTX.setLineDash([5,4]);
+      CTX.beginPath();CTX.arc(cx,cy,r+6,0,Math.PI*2);CTX.stroke();CTX.setLineDash([]);
     }
+
+    // resize handle — always visible
+    const[hx,hy]=rHandle(o);
+    CTX.fillStyle=sel?'#f5a623':'rgba(245,166,35,.45)';
+    CTX.strokeStyle=sel?'#fff':'rgba(255,255,255,.3)';
+    CTX.lineWidth=1.5;
+    if(sel){CTX.shadowColor='#f5a623';CTX.shadowBlur=8;}
+    CTX.beginPath();CTX.arc(hx,hy,RH*(sel?1:.7),0,Math.PI*2);CTX.fill();CTX.stroke();CTX.shadowBlur=0;
+
+    // ↔ icon
+    CTX.fillStyle=sel?'rgba(13,17,23,.95)':'rgba(13,17,23,.7)';
+    CTX.font=`bold ${RH}px Arial`;CTX.textAlign='center';CTX.textBaseline='middle';
+    CTX.fillText('↔',hx,hy+.5);CTX.textBaseline='alphabetic';
+
+    // guide line
+    CTX.strokeStyle='rgba(245,166,35,.2)';CTX.lineWidth=.7;CTX.setLineDash([3,3]);
+    CTX.beginPath();CTX.moveTo(cx,cy);CTX.lineTo(hx,hy);CTX.stroke();CTX.setLineDash([]);
   }
 
   // ── start ──────────────────────────────────────────
@@ -771,22 +1069,77 @@ function render(){
   const dkeys=sim.mode==='both'?['mppi','dial']:[sim.mode];
   for(const k of dkeys){
     const ag=sim.agents[k];if(!ag.ctrl||!ag.ctrl.lW)continue;
-    const{lW:wts,lE:eps,U,H:hz,K}=ag.ctrl;
-    const sorted=Array.from({length:K},(_,i)=>i).sort((a,b)=>wts[b]-wts[a]).slice(0,15);
-    CTX.lineWidth=.8;
-    for(const ki of sorted){
+    const{lW:wts,lE:eps,lC:costs,U,H:hz,K,alpha:ctrlAlpha}=ag.ctrl;
+    if(!costs)continue;
+
+    const nExplore=Math.floor((1-(ctrlAlpha??1))*K); // pure-noise 샘플 경계
+
+    // 균등 간격 인덱스 — exploration/warm-start 각 영역에서 균등 추출
+    const N_HALF=10;
+    const expIndices = nExplore > 0
+      ? Array.from({length:N_HALF}, (_,i) =>
+          Math.min(Math.floor(i * nExplore / N_HALF), nExplore-1))
+      : [];
+    const wsStart = nExplore, wsCount = K - nExplore;
+    const wsIndices = wsCount > 0
+      ? Array.from({length:N_HALF}, (_,i) =>
+          Math.min(wsStart + Math.floor(i * wsCount / N_HALF), K-1))
+      : [];
+    // 중복 제거
+    const indices = [...new Set([...expIndices, ...wsIndices])].filter(v=>v>=0&&v<K);
+
+    // 비용 범위 정규화 (표시 샘플 기준)
+    let cMin=Infinity, cMax=-Infinity;
+    for(const ki of indices){
+      if(costs[ki]<cMin) cMin=costs[ki];
+      if(costs[ki]>cMax) cMax=costs[ki];
+    }
+    const cRange = cMax - cMin || 1;
+
+    // 최고 가중치 인덱스 (전체 K 중)
+    let bestIdx=0, bestW=wts[0];
+    for(let ki=0;ki<K;ki++) if(wts[ki]>bestW){bestW=wts[ki];bestIdx=ki;}
+
+    // Bug fix 1: arrow function (not hoisted function declaration inside loop)
+    const drawRollout = (ki, lineW, shadowB, shadowC) => {
+      const isExplore = ki < nExplore;
       let sx=ag.state[0],sy=ag.state[1],svx=ag.state[2],svy=ag.state[3];
-      CTX.strokeStyle=k==='mppi'?`rgba(138,100,255,${wts[ki]*14+.04})`:`rgba(100,200,255,${wts[ki]*14+.04})`;
       CTX.beginPath();const[px,py]=w2c(sx,sy);CTX.moveTo(px,py);
-      for(let t=0;t<Math.min(hz,20);t++){
-        const ax=clip(U[t*2]+(eps?eps[ki*hz*2+t*2]:0),-2,2);
-        const ay=clip(U[t*2+1]+(eps?eps[ki*hz*2+t*2+1]:0),-2,2);
+      for(let t=0;t<hz;t++){
+        const e0=eps?eps[ki*hz*2+t*2]:0, e1=eps?eps[ki*hz*2+t*2+1]:0;
+        const ax=clip(isExplore ? e0 : U[t*2]+e0,   -ENV.MAX_ACC,ENV.MAX_ACC);
+        const ay=clip(isExplore ? e1 : U[t*2+1]+e1, -ENV.MAX_ACC,ENV.MAX_ACC);
         svx+=ax*ENV.DT-ENV.DRAG*svx*ENV.DT;svy+=ay*ENV.DT-ENV.DRAG*svy*ENV.DT;
         sx=clip(sx+svx*ENV.DT,-ENV.BOUND,ENV.BOUND);sy=clip(sy+svy*ENV.DT,-ENV.BOUND,ENV.BOUND);
         const[qx,qy]=w2c(sx,sy);CTX.lineTo(qx,qy);
       }
+      CTX.lineWidth=lineW;
+      if(shadowB>0){CTX.shadowColor=shadowC;CTX.shadowBlur=shadowB;}
       CTX.stroke();
+      CTX.shadowBlur=0;
+    };
+
+    // 일반 rollout — cost colormap
+    for(const ki of indices){
+      if(ki===bestIdx) continue;
+      const isExplore = ki < nExplore;
+      const t_norm = Math.max(0, Math.min(1, (costs[ki]-cMin)/cRange));
+      const a = 0.18 + (1-t_norm)*0.42;
+      const w = 0.9  + (1-t_norm)*1.4;
+      CTX.strokeStyle = costColor(t_norm, a);
+      if(isExplore) CTX.setLineDash([3,4]);
+      drawRollout(ki, w, 0, '');
+      CTX.setLineDash([]);
     }
+
+    // best rollout — glow + white core
+    // Bug fix 2: clamp bestNorm to [0,1]
+    const bestNorm = Math.max(0, Math.min(1, (costs[bestIdx]-cMin)/cRange));
+    CTX.setLineDash([]);
+    CTX.strokeStyle = costColor(bestNorm, 0.95);
+    drawRollout(bestIdx, 3.5, 12, costColor(bestNorm, 1));
+    CTX.strokeStyle = 'rgba(255,255,255,0.85)';
+    drawRollout(bestIdx, 1.5, 0, '');
   }
 
   // ── trajectories ──────────────────────────────────
@@ -894,6 +1247,8 @@ function updateUI(){
     document.getElementById('st-x').textContent=s[0].toFixed(2);
     document.getElementById('st-y').textContent=s[1].toFixed(2);
     document.getElementById('st-v').textContent=Math.hypot(s[2],s[3]).toFixed(2);
+    const spd=Math.hypot(s[2],s[3]);
+    document.getElementById('spd-bar').style.width=Math.min(spd/ENV.MAX_SPEED*100,100)+'%';
   }
   document.getElementById('st-r').textContent=sim.totalRew.toFixed(1);
   const pct=Math.min(sim.steps/sim.maxSteps*100,100);
@@ -917,14 +1272,68 @@ U ← U + Σ w_k ε_k</span>Fixed σ across all horizon steps.`;
 // ═══════════════════════════════════════════════════════
 const SL=[
   ['s-H','v-H',v=>v],['s-K','v-K',v=>v],
-  ['s-lam','v-lam',v=>(+v).toFixed(2)],['s-sig','v-sig',v=>(+v).toFixed(1)],
+  ['s-lam','v-lam',v=>(+v).toFixed(2)],
+  ['s-alpha','v-alpha',v=>(+v).toFixed(2)],
+  ['s-sig','v-sig',v=>(+v).toFixed(1)],
   ['s-N','v-N',v=>v],['s-sb','v-sb',v=>(+v).toFixed(1)],
   ['s-b1','v-b1',v=>(+v).toFixed(1)],['s-b2','v-b2',v=>(+v).toFixed(1)],
+  ['s-mv','v-mv',v=>(+v).toFixed(1)],['s-ma','v-ma',v=>(+v).toFixed(1)],
 ];
+function updateGamma(){
+  const lam=+document.getElementById('s-lam').value;
+  const alpha=+document.getElementById('s-alpha').value;
+  document.getElementById('v-gamma').textContent=(lam*(1-alpha)).toFixed(3);
+}
 for(const[si,vi,f] of SL){
   const sl=document.getElementById(si),vl=document.getElementById(vi);
-  sl.addEventListener('input',()=>{vl.textContent=f(sl.value);if(sim.running)resetSim();});
+  sl.addEventListener('input',()=>{
+    vl.textContent=f(sl.value);
+    if(si==='s-mv'){ ENV.MAX_SPEED=+sl.value; document.getElementById('spd-max-lbl').textContent='/ '+sl.value; }
+    if(si==='s-ma') ENV.MAX_ACC=+sl.value;
+    if(si==='s-lam'||si==='s-alpha') updateGamma();
+    if(si!=='s-mv'&&si!=='s-ma'&&sim.running) resetSim();
+  });
 }
+
+// ── Savitzky-Golay wiring ─────────────────────────────
+function updateSGUI(){
+  const on = sgEnabled;
+  const btn = document.getElementById('btn-sg');
+  const panel = document.getElementById('sg-params');
+  btn.textContent = on ? 'SG: ON' : 'SG: OFF';
+  btn.style.borderColor = on ? '#67e8f9' : '';
+  btn.style.color       = on ? '#67e8f9' : '';
+  btn.style.background  = on ? 'rgba(103,232,249,0.1)' : '';
+  panel.style.opacity        = on ? '1'    : '0.3';
+  panel.style.pointerEvents  = on ? 'auto' : 'none';
+  // validate: poly order must be < window
+  const wo = document.getElementById('s-sgo');
+  wo.max = sgWin - 1;
+  if(sgOrder >= sgWin){ sgOrder = sgWin-1; wo.value = sgOrder; document.getElementById('v-sgo').textContent = sgOrder; }
+}
+
+document.getElementById('btn-sg').addEventListener('click', ()=>{
+  sgEnabled = !sgEnabled;
+  rebuildSGCoeffs();
+  updateSGUI();
+});
+
+document.getElementById('s-sgw').addEventListener('input', e=>{
+  sgWin = +e.target.value;
+  document.getElementById('v-sgw').textContent = sgWin;
+  // poly order must stay < window
+  const so = document.getElementById('s-sgo');
+  so.max = sgWin - 1;
+  if(sgOrder >= sgWin){ sgOrder = sgWin-1; so.value = sgOrder; document.getElementById('v-sgo').textContent = sgOrder; }
+  rebuildSGCoeffs();
+});
+
+document.getElementById('s-sgo').addEventListener('input', e=>{
+  sgOrder = Math.min(+e.target.value, sgWin-1);
+  e.target.value = sgOrder;
+  document.getElementById('v-sgo').textContent = sgOrder;
+  rebuildSGCoeffs();
+});
 
 document.querySelectorAll('.atab').forEach(tab=>{
   tab.addEventListener('click',()=>{
@@ -945,27 +1354,11 @@ document.getElementById('btn-start').addEventListener('click',()=>{
 });
 document.getElementById('btn-reset').addEventListener('click',resetSim);
 
-// EDIT MODE
-document.getElementById('btn-edit').addEventListener('click',()=>{
-  editMode=!editMode;
-  const btn=document.getElementById('btn-edit');
-  document.getElementById('ebadge').classList.toggle('hidden',!editMode);
-  btn.textContent=editMode?'✎ EDITING…':'✎ EDIT';
-  CW.className=editMode?'canvas-area ei':'canvas-area';
-  if(!editMode){selObs=-1;renderObsList();render();}
-});
-
 // ADD
 document.getElementById('btn-add').addEventListener('click',()=>{
   OBS.push({pos:[0,0],r:.8});
   selObs=OBS.length-1;
   renderObsList();render();resetSim();
-  if(!editMode){
-    editMode=true;
-    document.getElementById('btn-edit').textContent='✎ EDITING…';
-    document.getElementById('ebadge').classList.remove('hidden');
-    CW.className='canvas-area ei';
-  }
 });
 
 // RESET OBS
@@ -974,14 +1367,34 @@ document.getElementById('btn-robs').addEventListener('click',()=>{
   selObs=-1;renderObsList();render();resetSim();
 });
 
+// SEED
+document.getElementById('btn-rnd').addEventListener('click',()=>{
+  const s=Math.floor(Math.random()*9999999);
+  document.getElementById('inp-seed').value=s;
+  setSeed(s);resetSim();
+});
+document.getElementById('btn-apply-seed').addEventListener('click',()=>{
+  const s=parseInt(document.getElementById('inp-seed').value)||42;
+  setSeed(s);resetSim();
+});
+document.getElementById('inp-seed').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){const s=parseInt(e.target.value)||42;setSeed(s);resetSim();}
+});
+
+// GOAL RESET
+document.getElementById('btn-reset-goal').addEventListener('click',()=>{
+  ENV.goal[0]=7;ENV.goal[1]=7;
+  updateGoalLabel();render();resetSim();
+});
+
 window.addEventListener('resize',resize);
 
 // ═══════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════
-resize();makeCtrl();setInfo('mppi');
+resize();makeCtrl();setInfo('mppi');setSeed(42);updateGamma();rebuildSGCoeffs();updateSGUI();
 for(const ag of Object.values(sim.agents))ag.state=new Float64Array([ENV.start[0],ENV.start[1],0,0]);
-renderObsList();render();drawCharts();
+renderObsList();updateGoalLabel();render();drawCharts();
 </script>
 </body>
 </html>
