@@ -44,9 +44,17 @@ header{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;alig
 .tab{padding:7px 2px;border-radius:4px;border:none;background:transparent;color:var(--muted);
   font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;transition:all .17s;text-align:center}
 .tab:hover{color:var(--text);background:var(--border)}
-.tab.am{background:rgba(0,229,255,.14);color:var(--c1);border:1px solid rgba(0,229,255,.35)!important}
+.tab.ac{background:rgba(245,166,35,.14);color:#f5a623;border:1px solid rgba(245,166,35,.35)!important}
+.tab.ai{background:rgba(176,132,255,.14);color:#b084ff;border:1px solid rgba(176,132,255,.35)!important}
+.algo-sel{width:100%;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);
+  color:var(--text);font-family:var(--mono);font-size:10px;padding:5px 7px;outline:none;cursor:pointer}
+.algo-sel:focus{border-color:var(--c1)}
 .tab.ad{background:rgba(57,255,154,.11);color:var(--c2);border:1px solid rgba(57,255,154,.35)!important}
-.tab.ab{background:rgba(138,100,255,.14);color:#b084ff;border:1px solid rgba(138,100,255,.35)!important}
+.tab.ac{background:rgba(245,166,35,.14);color:#f5a623;border:1px solid rgba(245,166,35,.35)!important}
+.tab.ai{background:rgba(176,132,255,.14);color:#b084ff;border:1px solid rgba(176,132,255,.35)!important}
+.algo-sel{width:100%;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);
+  color:var(--text);font-family:var(--mono);font-size:10px;padding:5px 7px;outline:none;cursor:pointer}
+.algo-sel:focus{border-color:var(--c1)}
 /* dyn tabs (2-col) */
 .tabs2{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--panel);
   padding:3px;border-radius:var(--r);border:1px solid var(--border)}
@@ -181,10 +189,27 @@ canvas.mini{width:100%;height:54px;display:block;border-radius:3px}
 <aside class="sidebar">
   <div>
     <div class="sec">Algorithm</div>
-    <div class="tabs" id="algo-tabs">
-      <button class="tab am" data-algo="mppi">MPPI</button>
-      <button class="tab"    data-algo="dial">DIAL</button>
-      <button class="tab"    data-algo="both">Both</button>
+    <!-- 4 single-algo tabs: 2x2 grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--panel);padding:3px;border-radius:var(--r);border:1px solid var(--border)">
+      <button class="tab am" id="tab-mppi" data-algo="mppi" style="font-size:9px">MPPI</button>
+      <button class="tab"    id="tab-dial" data-algo="dial" style="font-size:9px">DIAL</button>
+      <button class="tab"    id="tab-cem"  data-algo="cem"  style="font-size:9px;color:#f5a623">CEM</button>
+      <button class="tab"    id="tab-icem" data-algo="icem" style="font-size:9px;color:#b084ff">iCEM</button>
+    </div>
+    <!-- Compare toggle -->
+    <button class="btn" id="btn-compare" style="margin-top:5px;width:100%;font-size:10px">⇄ Compare: OFF</button>
+    <!-- Compare selects -->
+    <div id="compare-panel" style="display:none;margin-top:6px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Left</span>
+          <select id="sel-left"  class="algo-sel"><option value="mppi">MPPI</option><option value="dial">DIAL</option><option value="cem">CEM</option><option value="icem">iCEM</option></select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Right</span>
+          <select id="sel-right" class="algo-sel"><option value="mppi">MPPI</option><option value="dial" selected>DIAL</option><option value="cem">CEM</option><option value="icem">iCEM</option></select>
+        </div>
+      </div>
     </div>
   </div>
   <div>
@@ -202,13 +227,15 @@ canvas.mini{width:100%;height:54px;display:block;border-radius:3px}
       </div>
     </div>
   </div>
-  <div>
+  <!-- MPPI params -->
+  <div id="sec-mppi">
     <div class="sec" style="color:var(--c1)">MPPI</div>
     <div class="pg">
       <div class="pr"><div class="ph"><span class="pn">Noise σ</span><span class="pv" id="v-sig">0.9</span></div><input type="range" id="s-sig" min="0.1" max="2.5" value="0.9" step="0.1"/></div>
     </div>
   </div>
-  <div>
+  <!-- DIAL params -->
+  <div id="sec-dial">
     <div class="sec" style="color:var(--c2)">DIAL-MPC</div>
     <div class="pg">
       <div class="pr"><div class="ph"><span class="pn">Iterations N</span><span class="pv d" id="v-N">5</span></div><input class="ds" type="range" id="s-N" min="1" max="12" value="5" step="1"/></div>
@@ -217,7 +244,29 @@ canvas.mini{width:100%;height:54px;display:block;border-radius:3px}
       <div class="pr"><div class="ph"><span class="pn">β₂ (action)</span><span class="pv d" id="v-b2">0.5</span></div><input class="ds" type="range" id="s-b2" min="0.1" max="2.0" value="0.5" step="0.1"/></div>
     </div>
   </div>
-  <!-- Dynamics -->
+  <!-- CEM params -->
+  <div id="sec-cem" style="display:none">
+    <div class="sec" style="color:#f5a623">CEM</div>
+    <div class="pg">
+      <div class="pr"><div class="ph"><span class="pn">Iterations</span><span class="pv o" id="v-cni">5</span></div><input class="os" type="range" id="s-cni" min="1" max="15" value="5" step="1"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Elite %</span><span class="pv o" id="v-cef">10</span></div><input class="os" type="range" id="s-cef" min="5" max="50" value="10" step="5"/></div>
+      <div class="pr"><div class="ph"><span class="pn">σ_init</span><span class="pv o" id="v-csig">1.5</span></div><input class="os" type="range" id="s-csig" min="0.2" max="4.0" value="1.5" step="0.1"/></div>
+    </div>
+  </div>
+  <!-- iCEM params -->
+  <div id="sec-icem" style="display:none">
+    <div class="sec" style="color:#b084ff">iCEM</div>
+    <div class="pg">
+      <div class="pr"><div class="ph"><span class="pn">Iterations</span><span class="pv p" id="v-ini">5</span></div><input class="ps" type="range" id="s-ini" min="1" max="15" value="5" step="1"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Elite %</span><span class="pv p" id="v-ief">10</span></div><input class="ps" type="range" id="s-ief" min="5" max="50" value="10" step="5"/></div>
+      <div class="pr"><div class="ph"><span class="pn">σ_init</span><span class="pv p" id="v-isig">1.5</span></div><input class="ps" type="range" id="s-isig" min="0.2" max="4.0" value="1.5" step="0.1"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Noise β (color)</span><span class="pv p" id="v-ibc">1.0</span></div>
+        <input class="ps" type="range" id="s-ibc" min="0" max="3" value="1" step="0.5"/>
+        <div style="font-size:8px;color:var(--muted);margin-top:2px">0=white  1=pink  2=brown</div>
+      </div>
+      <div class="pr"><div class="ph"><span class="pn">Elite reuse %</span><span class="pv p" id="v-ier">30</span></div><input class="ps" type="range" id="s-ier" min="0" max="80" value="30" step="10"/></div>
+    </div>
+  </div>
   <div>
     <div class="sec" style="color:#fb923c">Dynamics Model</div>
     <div class="tabs2" id="dyn-tabs">
@@ -280,6 +329,8 @@ canvas.mini{width:100%;height:54px;display:block;border-radius:3px}
       <div class="lr"><div class="ld" style="background:var(--danger)"></div>Obstacle (drag / ↔ resize)</div>
       <div class="lr"><div class="ll" style="background:var(--c1)"></div>MPPI trajectory</div>
       <div class="lr"><div class="ll" style="background:var(--c2)"></div>DIAL-MPC trajectory</div>
+      <div class="lr"><div class="ll" style="background:#f5a623"></div>CEM trajectory</div>
+      <div class="lr"><div class="ll" style="background:#b084ff"></div>iCEM trajectory</div>
       <div class="lr"><div style="width:18px;height:2px;flex-shrink:0;background:linear-gradient(90deg,#00e5ff,#ffdc00,#f63)"></div>Rollout cost (low→high)</div>
       <div class="lr"><div class="ll" style="background:#fff;box-shadow:0 0 4px #0ff"></div>Best rollout</div>
       <div class="lr"><div style="width:18px;height:0;flex-shrink:0;border-top:2px dashed rgba(255,255,255,.5)"></div>Exploration rollout</div>
@@ -368,7 +419,7 @@ function setWsDot(ok){
 // SERVER STATE (updated on every message)
 // ═══════════════════════════════════════════════════════
 let SS = {
-  algo:'mppi', step:0, running:false, goal_reached:false, total_reward:0,
+  active_algos:['mppi'], step:0, running:false, goal_reached:false, total_reward:0,
   obstacles:[], goal:[7,7], dyn_model:'2nd', max_speed:4, max_acc:2,
   agents:{}
 };
@@ -489,12 +540,13 @@ function render(){
   }
 
   // rollouts per agent
-  const dkeys=SS.algo==='both'?['mppi','dial']:[SS.algo];
+  const dkeys=(SS.active_algos||['mppi']);
   for(const k of dkeys){
     const ag=SS.agents[k]; if(!ag) continue;
     const rl=ag.rollouts; if(!rl||!rl.trajs||!rl.costs) continue;
     const cMin=Math.min(...rl.costs), cMax=Math.max(...rl.costs), cRange=cMax-cMin||1;
-    const nExp=Math.floor((1-(currentAlpha||1))*K_val)||0;
+    // Use n_explore from server (0 for CEM/iCEM, alpha-based for MPPI/DIAL)
+    const nExp=ag.n_explore||0;
 
     // draw rollouts
     for(let ri=0;ri<rl.trajs.length;ri++){
@@ -518,10 +570,9 @@ function render(){
   }
 
   // agent trajectories
-  const COLORS={mppi:'#00e5ff',dial:'#39ff9a'};
   for(const k of dkeys){
     const ag=SS.agents[k]; if(!ag||ag.traj.length<2) continue;
-    const col=COLORS[k];
+    const col=ALGO_COLORS[k]||'#ffffff';
     CTX.strokeStyle=col; CTX.lineWidth=2; CTX.shadowColor=col; CTX.shadowBlur=7;
     CTX.beginPath();
     for(let i=0;i<ag.traj.length;i++){
@@ -535,22 +586,22 @@ function render(){
   for(const k of dkeys){
     const ag=SS.agents[k]; if(!ag) continue;
     const[ax,ay]=w2c(ag.pos[0],ag.pos[1]);
-    const col=COLORS[k];
+    const col=ALGO_COLORS[k]||'#ffffff';
     // velocity / action arrow
     let vx=0,vy=0;
     if(SS.dyn_model==='2nd'&&ag.vel.length>=2){ vx=ag.vel[0]; vy=ag.vel[1]; }
     else if(ag.action&&ag.action.length>=2){ vx=ag.action[0]; vy=ag.action[1]; }
     const vs=S*.38, ex=ax+vx*vs, ey=ay-vy*vs;
-    CTX.strokeStyle='#00d4ff'; CTX.lineWidth=1.8;
+    CTX.strokeStyle=col; CTX.lineWidth=1.8;
     CTX.beginPath(); CTX.moveTo(ax,ay); CTX.lineTo(ex,ey); CTX.stroke();
     const ang=Math.atan2(ey-ay,ex-ax);
-    CTX.fillStyle='#00d4ff'; CTX.beginPath();
+    CTX.fillStyle=col; CTX.beginPath();
     CTX.moveTo(ex,ey); CTX.lineTo(ex-7*Math.cos(ang-.4),ey-7*Math.sin(ang-.4));
     CTX.lineTo(ex-7*Math.cos(ang+.4),ey-7*Math.sin(ang+.4)); CTX.closePath(); CTX.fill();
     CTX.shadowColor=col; CTX.shadowBlur=14;
     CTX.fillStyle='#fff'; CTX.strokeStyle=col; CTX.lineWidth=2.5;
     CTX.beginPath(); CTX.arc(ax,ay,7,0,Math.PI*2); CTX.fill(); CTX.stroke(); CTX.shadowBlur=0;
-    if(SS.algo==='both'){
+    if((SS.active_algos||[]).length>1){
       CTX.fillStyle=col; CTX.font="bold 9px 'Space Mono'"; CTX.textAlign='center';
       CTX.fillText(k.toUpperCase(),ax,ay-13);
     }
@@ -584,15 +635,14 @@ function drawChart(id,fn){
 }
 
 function drawCharts(){
-  const mode=SS.algo;
+  const keys=SS.active_algos||['mppi'];
   drawChart('ch-cost',(cx,W,H)=>{
-    const keys=mode==='both'?['mppi','dial']:[mode];
-    const COLS={mppi:'#00e5ff',dial:'#39ff9a'};
     for(const k of keys){
       const ag=SS.agents[k]; if(!ag) continue;
       const h=ag.cost_history; if(!h||h.length<2) continue;
+      const col=ALGO_COLORS[k]||'#aaa';
       const n=h.length,mx=Math.max(...h),mn=Math.min(...h),rng=mx-mn||1;
-      cx.strokeStyle=COLS[k]; cx.lineWidth=1.5; cx.shadowColor=COLS[k]; cx.shadowBlur=4;
+      cx.strokeStyle=col; cx.lineWidth=1.5; cx.shadowColor=col; cx.shadowBlur=4;
       cx.beginPath();
       for(let i=0;i<n;i++){const px=(i/(n-1))*W,py=H-((h[i]-mn)/rng)*(H-8)-4;i===0?cx.moveTo(px,py):cx.lineTo(px,py);}
       cx.stroke(); cx.shadowBlur=0;
@@ -600,14 +650,8 @@ function drawCharts(){
   });
   drawChart('ch-sig',(cx,W,H)=>{
     const t2=document.getElementById('ch2t');
-    if(mode==='mppi'||mode==='both'){
-      t2.textContent='MPPI: fixed σ per step';
-      const sig=parseFloat(document.getElementById('s-sig').value)||.9;
-      cx.strokeStyle='#00e5ff'; cx.lineWidth=1.5; cx.setLineDash([4,4]);
-      cx.beginPath(); cx.moveTo(0,H/2); cx.lineTo(W,H/2); cx.stroke(); cx.setLineDash([]);
-      cx.fillStyle='rgba(0,229,255,.7)'; cx.font="11px 'Space Mono'";
-      cx.textAlign='center'; cx.fillText(`σ = ${sig.toFixed(2)}`,W/2,H/2-8);
-    } else {
+    // Show σ profile for DIAL if active, else MPPI flat σ, else empty
+    if(keys.includes('dial')){
       t2.textContent='DIAL: σ(h) annealing';
       const ag=SS.agents['dial']; if(!ag) return;
       const sigs=ag.sigma_profile; if(!sigs||sigs.length<2) return;
@@ -617,6 +661,15 @@ function drawCharts(){
       for(let i=0;i<n;i++){const px=(i/(n-1))*W,py=H-((sigs[i]-mn)/rng)*(H-8)-4;i===0?cx.moveTo(px,py):cx.lineTo(px,py);}
       cx.stroke(); cx.shadowBlur=0;
       cx.fillStyle='rgba(57,255,154,.07)'; cx.lineTo(W,H); cx.lineTo(0,H); cx.closePath(); cx.fill();
+    } else if(keys.includes('mppi')){
+      t2.textContent='MPPI: fixed σ per step';
+      const sig=parseFloat(document.getElementById('s-sig').value)||.9;
+      cx.strokeStyle='#00e5ff'; cx.lineWidth=1.5; cx.setLineDash([4,4]);
+      cx.beginPath(); cx.moveTo(0,H/2); cx.lineTo(W,H/2); cx.stroke(); cx.setLineDash([]);
+      cx.fillStyle='rgba(0,229,255,.7)'; cx.font="11px 'Space Mono'";
+      cx.textAlign='center'; cx.fillText(`σ = ${sig.toFixed(2)}`,W/2,H/2-8);
+    } else {
+      t2.textContent='Noise Profile';
     }
   });
 }
@@ -632,11 +685,11 @@ function updateUI(){
   document.getElementById('btn-start').textContent=SS.running?'⏸ PAUSE':
     (SS.goal_reached||SS.step>=1200)?'▶ RESTART':'▶ START';
 
-  const lbl=SS.running?(SS.algo==='mppi'?'MPPI running':SS.algo==='dial'?'DIAL-MPC running':'Both running'):
+  const lbl=SS.running?(SS.active_algos||[]).map(a=>a.toUpperCase()).join(' + ')+' running':
     (SS.goal_reached?'✓ GOAL REACHED':SS.step>=1200?'Timeout':'IDLE');
   document.getElementById('plbl').textContent=lbl;
 
-  const k=SS.algo==='both'?'dial':SS.algo;
+  const k=(SS.active_algos||['mppi']).slice(-1)[0];
   const ag=SS.agents[k];
   if(ag){
     const dist=Math.hypot(ag.pos[0]-SS.goal[0],ag.pos[1]-SS.goal[1]);
@@ -664,6 +717,17 @@ function updateUI(){
 let selObs=-1, drag=null;
 const RH=10;
 let currentAlpha=1, K_val=400;
+
+// throttle: send at most once per 50 ms during drag
+let _dragThrottle=0;
+function sendDragLive(){
+  const now=Date.now();
+  if(now-_dragThrottle<50) return;
+  _dragThrottle=now;
+  if(!drag) return;
+  if(drag.type==='goal') send({type:'set_goal',goal:SS.goal});
+  else                   send({type:'set_obstacles',obstacles:SS.obstacles});
+}
 
 function hitGoal(wx,wy){ return SS.goal&&Math.hypot(wx-SS.goal[0],wy-SS.goal[1])<0.8; }
 function hitObs(wx,wy){
@@ -706,18 +770,19 @@ CVS.addEventListener('mousemove',e=>{
       const ny=Math.max(-BOUND+.5,Math.min(BOUND-.5,drag.oy+(wy-drag.swy)));
       SS.goal=[nx,ny];
       showTip(mx+10,my-28,`GOAL (${nx.toFixed(1)}, ${ny.toFixed(1)})`);
-      render(); return;
-    }
-    const o=SS.obstacles[drag.idx];
-    if(drag.type==='move'){
-      o.pos[0]=Math.max(-BOUND+o.r,Math.min(BOUND-o.r,drag.ox+(wx-drag.swx)));
-      o.pos[1]=Math.max(-BOUND+o.r,Math.min(BOUND-o.r,drag.oy+(wy-drag.swy)));
-      showTip(mx+10,my-28,`(${o.pos[0].toFixed(1)}, ${o.pos[1].toFixed(1)}) r=${o.r.toFixed(2)}`);
     } else {
-      const[ocx,ocy]=w2c(o.pos[0],o.pos[1]);
-      o.r=Math.max(.2,Math.min(4,Math.hypot(mx-ocx,my-ocy)/sc()));
-      showTip(mx+10,my-28,`r = ${o.r.toFixed(2)}`);
+      const o=SS.obstacles[drag.idx];
+      if(drag.type==='move'){
+        o.pos[0]=Math.max(-BOUND+o.r,Math.min(BOUND-o.r,drag.ox+(wx-drag.swx)));
+        o.pos[1]=Math.max(-BOUND+o.r,Math.min(BOUND-o.r,drag.oy+(wy-drag.swy)));
+        showTip(mx+10,my-28,`(${o.pos[0].toFixed(1)}, ${o.pos[1].toFixed(1)}) r=${o.r.toFixed(2)}`);
+      } else {
+        const[ocx,ocy]=w2c(o.pos[0],o.pos[1]);
+        o.r=Math.max(.2,Math.min(4,Math.hypot(mx-ocx,my-ocy)/sc()));
+        showTip(mx+10,my-28,`r = ${o.r.toFixed(2)}`);
+      }
     }
+    sendDragLive();   // ← throttled live update to server during drag
     renderObsList(); render(); return;
   }
   if(hitGoal(wx,wy)){CW.className='canvas-area eh';showTip(mx+10,my-28,'GOAL — drag to move');return;}
@@ -730,12 +795,20 @@ CVS.addEventListener('mousemove',e=>{
 
 CVS.addEventListener('mouseup',()=>{
   if(drag){
+    // final precise update on release
     if(drag.type==='goal') send({type:'set_goal',goal:SS.goal});
     else send({type:'set_obstacles',obstacles:SS.obstacles});
-    drag=null; CW.className='canvas-area';
+    drag=null; CW.className='canvas-area'; hideTip();
   }
 });
-CVS.addEventListener('mouseleave',()=>{drag=null;hideTip();CW.className='canvas-area';});
+CVS.addEventListener('mouseleave',()=>{
+  if(drag){
+    if(drag.type==='goal') send({type:'set_goal',goal:SS.goal});
+    else send({type:'set_obstacles',obstacles:SS.obstacles});
+    drag=null;
+  }
+  hideTip(); CW.className='canvas-area';
+});
 
 // touch
 function tp(e){const r=CVS.getBoundingClientRect();return{mx:e.touches[0].clientX-r.left,my:e.touches[0].clientY-r.top};}
@@ -750,11 +823,11 @@ CVS.addEventListener('touchstart',e=>{
 CVS.addEventListener('touchmove',e=>{
   if(!drag)return;e.preventDefault();
   const{mx,my}=tp(e);const[wx,wy]=c2w(mx,my);
-  if(drag.type==='goal'){SS.goal=[Math.max(-BOUND+.5,Math.min(BOUND-.5,drag.ox+(wx-drag.swx))),Math.max(-BOUND+.5,Math.min(BOUND-.5,drag.oy+(wy-drag.swy)))];render();return;}
+  if(drag.type==='goal'){SS.goal=[Math.max(-BOUND+.5,Math.min(BOUND-.5,drag.ox+(wx-drag.swx))),Math.max(-BOUND+.5,Math.min(BOUND-.5,drag.oy+(wy-drag.swy)))];sendDragLive();render();return;}
   const o=SS.obstacles[drag.idx];
   if(drag.type==='move'){o.pos[0]=Math.max(-BOUND+o.r,Math.min(BOUND-o.r,drag.ox+(wx-drag.swx)));o.pos[1]=Math.max(-BOUND+o.r,Math.min(BOUND-o.r,drag.oy+(wy-drag.swy)));}
   else{const[ocx,ocy]=w2c(o.pos[0],o.pos[1]);o.r=Math.max(.2,Math.min(4,Math.hypot(mx-ocx,my-ocy)/sc()));}
-  renderObsList();render();
+  sendDragLive();renderObsList();render();
 },{passive:false});
 CVS.addEventListener('touchend',()=>{
   if(drag){
@@ -812,6 +885,10 @@ function gatherParams(){
     sigma:g('s-sig'), N:g('s-N'), sigma_base:g('s-sb'),
     beta1:g('s-b1'), beta2:g('s-b2'),
     sg_enabled:sgEnabled, sg_win:g('s-sgw'), sg_order:g('s-sgo'),
+    max_speed:g('s-mv'), max_acc:g('s-ma'),
+    cem_N_iter:g('s-cni'), cem_elite_frac:g('s-cef')/100, cem_sigma:g('s-csig'),
+    icem_N_iter:g('s-ini'), icem_elite_frac:g('s-ief')/100, icem_sigma:g('s-isig'),
+    icem_beta_color:g('s-ibc'), icem_elite_reuse:g('s-ier')/100,
   };
 }
 function updateGamma(){
@@ -833,18 +910,92 @@ function updateSGUI(){
   document.getElementById('sg-params').style.pointerEvents=on?'auto':'none';
 }
 
-function setAlgoInfo(m){
+// ── Algorithm UI helpers ──────────────────────────────
+const ALGO_COLORS={mppi:'#00e5ff',dial:'#39ff9a',cem:'#f5a623',icem:'#b084ff'};
+const ALGO_CLASS ={mppi:'am',      dial:'ad',     cem:'ac',     icem:'ai'};
+
+function setAlgoInfo(algos){
   const e=document.getElementById('ainfo');
-  if(m==='mppi')
-    e.innerHTML=`<strong>MPPI</strong> — Model Predictive Path Integral<br><br>K noise sequences, H-step rollout:<span class="fm">w_k = exp(-(J_k − β) / λ)\nU ← U + Σ w_k ε_k</span>Fixed σ; α controls exploration ratio.`;
-  else if(m==='dial')
-    e.innerHTML=`<strong>DIAL-MPC</strong> — Diffusion-Inspired Annealing<br><em>Xue et al., arXiv:2409.15610</em><br><br>N annealing iterations, dual-loop σ:<span class="fm">Σ^i = exp[-(N-i)/(β₁N)\n         -(H-h)/(β₂H)] · I</span>`;
-  else
-    e.innerHTML=`<strong>Both</strong>: MPPI (cyan) vs DIAL-MPC (green) running simultaneously.`;
+  const notes={
+    mppi:`<strong>MPPI</strong> — Model Predictive Path Integral<br><br>Soft-max weighted average:<span class="fm">w_k = exp(-(J_k − β)/λ)  U ← Σ w_k v_k</span>α controls exploration ratio.`,
+    dial:`<strong>DIAL-MPC</strong> — Diffusion-Inspired Annealing<br><em>Xue et al., 2409.15610</em><br><br>N annealing iters, dual-loop σ schedule.`,
+    cem:`<strong>CEM</strong> — Cross-Entropy Method<br><br>Hard top-K elite selection:<span class="fm">elite = argsort(J)[:K_e]  μ = mean(elite)  σ = std(elite)</span>Iteratively refines Gaussian distribution.`,
+    icem:`<strong>iCEM</strong> — Improved CEM<br><em>Pinneri et al., CoRL 2020</em><br><br>+ Colored noise (β)<br>+ Elite reuse (memory)<br>+ Best-action execution`,
+  };
+  if(algos.length===1){ e.innerHTML=notes[algos[0]]||''; return; }
+  e.innerHTML=`<strong>Compare:</strong> ${algos.map(a=>`<span style="color:${ALGO_COLORS[a]}">${a.toUpperCase()}</span>`).join(' vs ')}<br><br>`
+    + algos.map(a=>notes[a]).join('<hr style="border-color:var(--border);margin:5px 0">');
 }
 
+let compareMode=false;
+
+function updateAlgoTabs(algos){
+  // Clear all tab highlights
+  document.querySelectorAll('[id^="tab-"]').forEach(t=>
+    t.classList.remove('am','ad','ac','ai'));
+  // Highlight active
+  for(const a of algos){
+    const tab=document.getElementById('tab-'+a);
+    if(tab) tab.classList.add(ALGO_CLASS[a]);
+  }
+  // Show/hide param sections
+  const show=new Set(algos);
+  document.getElementById('sec-mppi').style.display=show.has('mppi')?'':'none';
+  document.getElementById('sec-dial').style.display=show.has('dial')?'':'none';
+  document.getElementById('sec-cem') .style.display=show.has('cem') ?'':'none';
+  document.getElementById('sec-icem').style.display=show.has('icem')?'':'none';
+  setAlgoInfo(algos);
+}
+
+function sendAlgos(algos){
+  send({type:'set_algos', algos});
+  updateAlgoTabs(algos);
+}
+
+// Single-algo tab clicks
+document.querySelectorAll('[id^="tab-"][data-algo]').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    compareMode=false;
+    document.getElementById('btn-compare').textContent='⇄ Compare: OFF';
+    document.getElementById('btn-compare').style.borderColor='';
+    document.getElementById('btn-compare').style.color='';
+    document.getElementById('compare-panel').style.display='none';
+    sendAlgos([tab.dataset.algo]);
+  });
+});
+
+// Compare toggle
+document.getElementById('btn-compare').addEventListener('click',()=>{
+  compareMode=!compareMode;
+  const btn=document.getElementById('btn-compare');
+  const panel=document.getElementById('compare-panel');
+  btn.textContent=compareMode?'⇄ Compare: ON':'⇄ Compare: OFF';
+  btn.style.borderColor=compareMode?'#e879f9':'';
+  btn.style.color=compareMode?'#e879f9':'';
+  panel.style.display=compareMode?'block':'none';
+  if(compareMode){
+    const l=document.getElementById('sel-left').value;
+    const r=document.getElementById('sel-right').value;
+    sendAlgos([l,r]);
+  } else {
+    // Fall back to first tab that's highlighted, or mppi
+    const first=document.querySelector('[id^="tab-"].am,[id^="tab-"].ad,[id^="tab-"].ac,[id^="tab-"].ai');
+    sendAlgos([first?first.dataset.algo:'mppi']);
+  }
+});
+
+// Compare selects
+function onCompareSelect(){
+  if(!compareMode) return;
+  const l=document.getElementById('sel-left').value;
+  const r=document.getElementById('sel-right').value;
+  sendAlgos([l,r]);
+}
+document.getElementById('sel-left') .addEventListener('change',onCompareSelect);
+document.getElementById('sel-right').addEventListener('change',onCompareSelect);
+
 // ═══════════════════════════════════════════════════════
-// WIRING
+// WIRING — sliders
 // ═══════════════════════════════════════════════════════
 const SLIDERS=[
   ['s-H','v-H',v=>v],['s-K','v-K',v=>v],
@@ -853,34 +1004,29 @@ const SLIDERS=[
   ['s-sb','v-sb',v=>(+v).toFixed(1)],['s-b1','v-b1',v=>(+v).toFixed(1)],['s-b2','v-b2',v=>(+v).toFixed(1)],
   ['s-mv','v-mv',v=>(+v).toFixed(1)],['s-ma','v-ma',v=>(+v).toFixed(1)],
   ['s-sgw','v-sgw',v=>v],['s-sgo','v-sgo',v=>v],
+  // CEM
+  ['s-cni','v-cni',v=>v],['s-cef','v-cef',v=>v],['s-csig','v-csig',v=>(+v).toFixed(1)],
+  // iCEM
+  ['s-ini','v-ini',v=>v],['s-ief','v-ief',v=>v],['s-isig','v-isig',v=>(+v).toFixed(1)],
+  ['s-ibc','v-ibc',v=>(+v).toFixed(1)],['s-ier','v-ier',v=>v],
 ];
 for(const[sid,vid,f] of SLIDERS){
   const sl=document.getElementById(sid),vl=document.getElementById(vid);
+  if(!sl||!vl) continue;
   sl.addEventListener('input',()=>{
     vl.textContent=f(sl.value);
     K_val=+document.getElementById('s-K').value;
     if(sid==='s-lam'||sid==='s-alpha') updateGamma();
     if(sid==='s-mv'){
-      send({type:'params',data:{...gatherParams()}});
+      send({type:'set_physics', max_speed:+sl.value});
       document.getElementById('spd-max-lbl').textContent='/ '+sl.value;
     } else if(sid==='s-ma'){
-      send({type:'params',data:{...gatherParams()}});
+      send({type:'set_physics', max_acc:+sl.value});
     } else {
       sendParams();
     }
   });
 }
-
-// algo tabs
-document.querySelectorAll('#algo-tabs .tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('#algo-tabs .tab').forEach(t=>t.classList.remove('am','ad','ab'));
-    const a=tab.dataset.algo;
-    tab.classList.add(a==='mppi'?'am':a==='dial'?'ad':'ab');
-    setAlgoInfo(a);
-    send({type:'set_algo',algo:a});
-  });
-});
 
 // dyn tabs
 document.querySelectorAll('#dyn-tabs .dtab').forEach(tab=>{
@@ -934,7 +1080,7 @@ document.getElementById('btn-add').addEventListener('click',()=>{
   send({type:'set_obstacles',obstacles:SS.obstacles}); renderObsList(); render();
 });
 document.getElementById('btn-robs').addEventListener('click',()=>{
-  send({type:'reset'}); selObs=-1;
+  send({type:'reset_obstacles'}); selObs=-1;
 });
 
 window.addEventListener('resize',resize);
@@ -942,7 +1088,8 @@ window.addEventListener('resize',resize);
 // ═══════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════
-resize(); connect(); updateGamma(); updateSGUI(); setAlgoInfo('mppi'); updateDynUI('2nd');
+resize(); connect(); updateGamma(); updateSGUI(); setAlgoInfo(['mppi']); updateDynUI('2nd');
+updateAlgoTabs(['mppi']);
 </script>
 </body>
 </html>

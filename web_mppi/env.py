@@ -109,7 +109,7 @@ class PointMass2DEnv:
 
     def terminal_cost(self, states: np.ndarray) -> np.ndarray:
         gx, gy = self.goal
-        return np.hypot(states[:, 0] - gx, states[:, 1] - gy) * 10.0
+        return np.hypot(states[:, 0] - gx, states[:, 1] - gy) * 100.0
 
     # ── serialisation helpers ─────────────────────────────
     def obstacles_to_list(self):
