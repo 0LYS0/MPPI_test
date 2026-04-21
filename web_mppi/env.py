@@ -40,6 +40,9 @@ class PointMass2DEnv:
     def action_lim(self) -> float:
         return self.max_speed if self.dyn_model == "1st" else self.max_acc
 
+    def action_dim(self) -> int:
+        return 2
+
     def init_state(self) -> np.ndarray:
         s = np.zeros(self.state_dim())
         s[:2] = self.start

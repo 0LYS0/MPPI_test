@@ -1,0 +1,38 @@
+franka_panda:
+    EndEffector:
+        position: [0, 0, 0]
+        orientation: [0, 0, 0]
+    Mobile:
+        valid: false
+    JointInfo:
+        RobotBaseJoint: []
+        RobotMovableJoint: [0, 1, 2, 3, 4, 5, 6]
+        RobotEEJoint: [7]
+        RobotFTJoint: []
+        GripperJoint: []
+
+franka_panda_handle:
+    EndEffector:
+        position: [0, 0, 0]
+        orientation: [0, 0, 0]
+    Mobile:
+        valid: false
+    JointInfo:
+        RobotBaseJoint: []
+        RobotMovableJoint: [0, 1, 2, 3, 4, 5, 6]
+        RobotEEJoint: [11]
+        RobotFTJoint: [7]
+        GripperJoint: []
+
+franka_panda_gripper:
+    EndEffector:
+        position: [0, 0, 0.1030]
+        orientation: [0, 0, -45]
+    Mobile:
+        valid: false
+    JointInfo:
+        RobotBaseJoint: []
+        RobotMovableJoint: [0, 1, 2, 3, 4, 5, 6]
+        RobotEEJoint: [7]
+        RobotFTJoint: [8]
+        GripperJoint: [9, 10]

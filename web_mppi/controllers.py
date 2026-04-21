@@ -100,7 +100,8 @@ class MPPIController:
         self.sg_enabled  = sg_enabled
         self.sg_win, self.sg_order = sg_win, sg_order
         self.rng = np.random.default_rng(seed)
-        self.U   = np.zeros((H, 2))
+        n_act    = env.action_dim() if hasattr(env, 'action_dim') else 2
+        self.U   = np.zeros((H, n_act))
         self.last_samples = None
         self.last_costs   = None
         self.n_explore    = int((1.0 - alpha) * K)
@@ -121,22 +122,22 @@ class MPPIController:
         inv_sig2   = 1.0 / (sigma ** 2)
         n_explore  = int((1.0 - alpha) * K)
         lim        = self.env.action_lim()
+        n_act      = self.U.shape[1]
 
-        eps         = self.rng.standard_normal((K, H, 2)) * sigma
-        all_actions = np.empty((K, H, 2))
+        eps         = self.rng.standard_normal((K, H, n_act)) * sigma
+        all_actions = np.empty((K, H, n_act))
         states      = np.tile(state, (K, 1))
         costs       = np.zeros(K)
 
         for t in range(H):
-            u0, u1 = self.U[t, 0], self.U[t, 1]
-            all_actions[:n_explore, t, 0] = np.clip(eps[:n_explore, t, 0], -lim, lim)
-            all_actions[:n_explore, t, 1] = np.clip(eps[:n_explore, t, 1], -lim, lim)
-            all_actions[n_explore:, t, 0] = np.clip(u0 + eps[n_explore:, t, 0], -lim, lim)
-            all_actions[n_explore:, t, 1] = np.clip(u1 + eps[n_explore:, t, 1], -lim, lim)
-            states = self.env.batch_step(states, all_actions[:, t, :])
+            u_t = self.U[t]                                          # [n_act]
+            all_actions[:n_explore, t] = np.clip(eps[:n_explore, t], -lim, lim)
+            all_actions[n_explore:, t] = np.clip(u_t + eps[n_explore:, t], -lim, lim)
+            states = self.env.batch_step(states, all_actions[:, t])
             rc     = self.env.running_cost(states)
             if gamma > 0:
-                costs += rc + gamma * inv_sig2 * (u0 * eps[:, t, 0] + u1 * eps[:, t, 1])
+                # control cost: γ/σ² · u_t · ε_k_t  (summed over action dims)
+                costs += rc + gamma * inv_sig2 * (eps[:, t] @ u_t)
             else:
                 costs += rc
 
@@ -184,7 +185,8 @@ class DIALController:
         self.sg_enabled        = sg_enabled
         self.sg_win, self.sg_order = sg_win, sg_order
         self.rng = np.random.default_rng(seed)
-        self.U   = np.zeros((H, 2))
+        n_act    = env.action_dim() if hasattr(env, 'action_dim') else 2
+        self.U   = np.zeros((H, n_act))
         self.last_samples = None
         self.last_costs   = None
         self.last_sigmas  = None
@@ -208,28 +210,27 @@ class DIALController:
         lam, alpha = self.lam, self.alpha
         gamma      = lam * (1.0 - alpha)
         n_explore  = int((1.0 - alpha) * K)
+        n_act      = self.U.shape[1]
         total_cost = 0.0
         last_actions = None
 
         for i in range(N, 0, -1):
             sigmas      = self._sigma_schedule(i)
-            eps         = self.rng.standard_normal((K, H, 2)) * sigmas[None, :, None]
-            all_actions = np.empty((K, H, 2))
+            eps         = self.rng.standard_normal((K, H, n_act)) * sigmas[None, :, None]
+            all_actions = np.empty((K, H, n_act))
             states      = np.tile(state, (K, 1))
             costs       = np.zeros(K)
 
             for t in range(H):
-                u0, u1  = self.U[t, 0], self.U[t, 1]
-                inv_s2  = 1.0 / (float(sigmas[t]) ** 2 + 1e-12)
-                lim     = self.env.action_lim()
-                all_actions[:n_explore, t, 0] = np.clip(eps[:n_explore, t, 0], -lim, lim)
-                all_actions[:n_explore, t, 1] = np.clip(eps[:n_explore, t, 1], -lim, lim)
-                all_actions[n_explore:, t, 0] = np.clip(u0 + eps[n_explore:, t, 0], -lim, lim)
-                all_actions[n_explore:, t, 1] = np.clip(u1 + eps[n_explore:, t, 1], -lim, lim)
-                states = self.env.batch_step(states, all_actions[:, t, :])
+                u_t    = self.U[t]                                   # [n_act]
+                inv_s2 = 1.0 / (float(sigmas[t]) ** 2 + 1e-12)
+                lim    = self.env.action_lim()
+                all_actions[:n_explore, t] = np.clip(eps[:n_explore, t], -lim, lim)
+                all_actions[n_explore:, t] = np.clip(u_t + eps[n_explore:, t], -lim, lim)
+                states = self.env.batch_step(states, all_actions[:, t])
                 rc     = self.env.running_cost(states)
                 if gamma > 0:
-                    costs += rc + gamma * inv_s2 * (u0 * eps[:, t, 0] + u1 * eps[:, t, 1])
+                    costs += rc + gamma * inv_s2 * (eps[:, t] @ u_t)
                 else:
                     costs += rc
 
@@ -289,7 +290,8 @@ class CEMController:
         self.sg_enabled = sg_enabled
         self.sg_win, self.sg_order = sg_win, sg_order
         self.rng = np.random.default_rng(seed)
-        self.U   = np.zeros((H, 2))
+        n_act = env.action_dim() if hasattr(env, 'action_dim') else 2
+        self.U   = np.zeros((H, n_act))
         self.last_samples = None
         self.last_costs   = None
         self.cost_history = []
@@ -304,12 +306,13 @@ class CEMController:
     def compute(self, state):
         H, K    = self.H, self.K
         lim     = self.env.action_lim()
+        n_act   = self.U.shape[1]
         N_elite = max(2, int(K * self.elite_frac))
         mu      = self.U.copy()
-        sigma   = np.full((H, 2), self.sigma_init)
+        sigma   = np.full((H, n_act), self.sigma_init)
 
         for _ in range(self.N_iter):
-            noise   = self.rng.standard_normal((K, H, 2)) * sigma[None]
+            noise   = self.rng.standard_normal((K, H, n_act)) * sigma[None]
             samples = np.clip(mu[None] + noise, -lim, lim)
             costs   = _rollout_costs(self.env, state, samples)
 
@@ -366,7 +369,8 @@ class iCEMController:
         self.sg_enabled   = sg_enabled
         self.sg_win, self.sg_order = sg_win, sg_order
         self.rng          = np.random.default_rng(seed)
-        self.U            = np.zeros((H, 2))
+        n_act2 = env.action_dim() if hasattr(env, 'action_dim') else 2
+        self.U            = np.zeros((H, n_act2))
         self.prev_elites  = None
         self.last_samples = None
         self.last_costs   = None
@@ -383,12 +387,13 @@ class iCEMController:
     def _colored_noise(self, K, H, sigma):
         """Power-law colored noise PSD ∝ 1/f^beta. sigma: [H,2]."""
         beta = self.beta_color
+        n_act_c = sigma.shape[1] if hasattr(sigma, 'shape') and sigma.ndim > 1 else sigma.shape[0] if hasattr(sigma, 'shape') else 2
         if beta == 0.0 or H < 4:
-            return self.rng.standard_normal((K, H, 2)) * sigma[None]
+            return self.rng.standard_normal((K, H, n_act_c)) * sigma[None]
         f = np.fft.rfftfreq(H)
         f[0] = 1.0
         power = f ** (-beta / 2.0); power[0] = 0.0
-        white = self.rng.standard_normal((K, H, 2))
+        white = self.rng.standard_normal((K, H, n_act_c))
         spec  = np.fft.rfft(white, axis=1) * power[None, :, None]
         colored = np.fft.irfft(spec, n=H, axis=1)
         s = colored.std(axis=(0, 1), keepdims=True)
@@ -397,9 +402,10 @@ class iCEMController:
     def compute(self, state):
         H, K    = self.H, self.K
         lim     = self.env.action_lim()
+        n_act   = self.U.shape[1]
         N_elite = max(2, int(K * self.elite_frac))
         mu      = self.U.copy()
-        sigma   = np.full((H, 2), self.sigma_init)
+        sigma   = np.full((H, n_act), self.sigma_init)
         best_elite = None
 
         for _ in range(self.N_iter):

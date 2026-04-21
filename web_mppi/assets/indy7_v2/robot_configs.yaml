@@ -1,0 +1,8 @@
+indy7_v2:
+    EndEffector:
+        position: [0, 0, 0]
+        orientation: [0, 0, 0]
+    JointInfo:
+        RobotBaseJoint: [-1]
+        RobotMovableJoint: [0, 1, 2, 3, 4, 5]
+        RobotEEJoint: [6]

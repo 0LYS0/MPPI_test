@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Panda MPPI — 3D Robot Arm Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#080c10;--surface:#0d1117;--panel:#111820;--border:#1e2d3d;--border2:#243447;
+  --text:#c9d8e8;--muted:#4a6480;
+  --c1:#00e5ff;--c2:#39ff9a;--danger:#ff4d6d;--warn:#f5a623;--purple:#b084ff;
+  --g1:rgba(0,229,255,.12);--g2:rgba(57,255,154,.12);
+  --mono:'Space Mono',monospace;--r:6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;
+  min-height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{
+  padding:11px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(90deg,rgba(0,229,255,.04),transparent);flex-shrink:0;
+}
+.logo-title{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;
+  background:linear-gradient(90deg,var(--c1),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{color:var(--muted);font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:9px;
+  letter-spacing:1px;text-transform:uppercase;font-weight:700;border:1px solid;white-space:nowrap}
+.bc{color:var(--c1);border-color:var(--c1);background:var(--g1)}
+.bp{color:var(--purple);border-color:var(--purple);background:rgba(176,132,255,.1)}
+#ws-dot{width:7px;height:7px;border-radius:50%;background:#e74c3c}
+#ws-dot.ok{background:var(--c2)}
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:230px 1fr 230px;flex:1;overflow:hidden;min-height:0}
+/* SIDEBAR */
+.sidebar{background:var(--surface);padding:11px;overflow-y:auto;display:flex;
+  flex-direction:column;gap:10px;border-right:1px solid var(--border)}
+.sidebar.right{border-right:none;border-left:1px solid var(--border)}
+.sec{font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);
+  margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid var(--border)}
+/* SLIDERS */
+.pg{display:flex;flex-direction:column;gap:8px}
+.pr{display:flex;flex-direction:column;gap:2px}
+.ph{display:flex;justify-content:space-between;align-items:baseline}
+.pn{font-size:10px;color:var(--text)}
+.pv{font-size:11px;font-weight:700;color:var(--c1);min-width:34px;text-align:right}
+.pv.d{color:var(--c2)}.pv.p{color:var(--purple)}.pv.o{color:var(--warn)}.pv.s{color:#67e8f9}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;
+  background:var(--border2);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+  border-radius:50%;background:var(--c1);box-shadow:0 0 5px var(--c1);cursor:pointer}
+.ds::-webkit-slider-thumb{background:var(--c2);box-shadow:0 0 5px var(--c2)}
+.ps::-webkit-slider-thumb{background:var(--purple);box-shadow:0 0 5px var(--purple)}
+.os::-webkit-slider-thumb{background:var(--warn);box-shadow:0 0 5px var(--warn)}
+/* TABS */
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:var(--panel);
+  padding:3px;border-radius:var(--r);border:1px solid var(--border)}
+.tab{padding:6px 2px;border-radius:4px;border:none;background:transparent;
+  color:var(--muted);font-family:var(--mono);font-size:9px;font-weight:700;
+  cursor:pointer;transition:all .17s;text-align:center}
+.tab:hover{color:var(--text);background:var(--border)}
+.tab.am{background:rgba(0,229,255,.14);color:var(--c1);border:1px solid rgba(0,229,255,.35)!important}
+.tab.ac{background:rgba(245,166,35,.14);color:var(--warn);border:1px solid rgba(245,166,35,.35)!important}
+.tab.ai{background:rgba(176,132,255,.14);color:var(--purple);border:1px solid rgba(176,132,255,.35)!important}
+.ts::-webkit-slider-thumb{background:#67e8f9;box-shadow:0 0 5px #67e8f9}
+/* COMPARE */
+.tabs2{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--panel);
+  padding:3px;border-radius:var(--r);border:1px solid var(--border)}
+.algo-sel{width:100%;background:var(--panel);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text);font-family:var(--mono);
+  font-size:10px;padding:4px 6px;outline:none;cursor:pointer}
+/* BUTTONS */
+.bg2{display:flex;gap:4px;flex-wrap:wrap}
+.btn{flex:1;padding:7px 6px;border-radius:var(--r);border:1px solid var(--border2);
+  background:var(--panel);color:var(--text);font-family:var(--mono);font-size:9px;
+  font-weight:700;letter-spacing:.7px;text-transform:uppercase;cursor:pointer;
+  transition:all .17s;white-space:nowrap}
+.btn:hover{border-color:var(--c1);color:var(--c1);background:var(--g1)}
+.btn.primary{background:rgba(0,229,255,.1);border-color:var(--c1);color:var(--c1)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.danger:hover{background:rgba(255,77,109,.12)}
+/* STATS */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.sb{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+  padding:5px 7px;display:flex;flex-direction:column;gap:1px}
+.sl{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.sv{font-size:12px;font-weight:700}
+.cy{color:var(--c1)}.gn{color:var(--c2)}.wn{color:var(--warn)}.rd{color:var(--danger)}.pp{color:var(--purple)}
+/* JOINT TABLE */
+.jt{display:flex;flex-direction:column;gap:3px}
+.jr{display:flex;align-items:center;gap:6px;font-size:10px}
+.ji{color:var(--muted);width:14px;flex-shrink:0;text-align:right;font-size:9px}
+.jbar{flex:1;height:4px;background:var(--border2);border-radius:2px;overflow:hidden}
+.jfill{height:100%;border-radius:2px;transition:width .08s}
+.jv{min-width:42px;text-align:right;font-size:10px;color:var(--text)}
+/* GOAL SLIDERS */
+.goal-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.glabel{font-size:9px;color:var(--muted);width:10px;flex-shrink:0;text-align:center}
+.goal-inp{flex:1;background:var(--panel);border:1px solid var(--border2);
+  border-radius:4px;color:var(--text);font-family:var(--mono);font-size:10px;
+  padding:4px 6px;outline:none;text-align:right;width:58px}
+.goal-inp:focus{border-color:var(--c2)}
+/* CHART */
+.cw{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:7px}
+.ct{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+canvas.mini{width:100%;height:48px;display:block;border-radius:3px}
+/* INFO */
+.icard{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+  padding:7px;font-size:10px;line-height:1.75;color:var(--muted)}
+.icard strong{color:var(--text)}
+.icard .fm{color:var(--c2);background:rgba(57,255,154,.06);padding:3px 6px;
+  border-radius:4px;margin:3px 0;border-left:2px solid var(--c2);
+  white-space:pre;font-size:9px;display:block}
+/* SEED */
+.seed-row{display:flex;gap:4px;align-items:center}
+.seed-inp{flex:1;background:var(--panel);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text);font-family:var(--mono);
+  font-size:11px;padding:5px 7px;outline:none}
+.seed-inp:focus{border-color:var(--c1)}
+.seed-inp::-webkit-inner-spin-button{-webkit-appearance:none}
+/* PROGRESS */
+.pw{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:4px 10px;display:flex;align-items:center;gap:7px;font-size:9px;
+  white-space:nowrap;z-index:10}
+.pt{width:120px;height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.pf{height:100%;background:linear-gradient(90deg,var(--c1),var(--purple));
+  border-radius:2px;transition:width .1s}
+/* GOAL FLASH */
+.gf{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;
+  background:radial-gradient(circle at 50%,rgba(57,255,154,.15),transparent 70%)}
+.gf.show{opacity:1}
+/* VIEWPORT */
+.viewport{position:relative;overflow:hidden;background:#000}
+#renderer-canvas{display:block;width:100%;height:100%}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo-title">Panda MPPI — 3D Robot Arm</div>
+    <div class="logo-sub">FastAPI · WebSocket · Three.js</div>
+  </div>
+  <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+    <div id="ws-dot"></div>
+    <span id="ws-lbl" style="font-size:9px;color:var(--muted)">connecting…</span>
+    <span class="badge bc">Franka Panda 7-DOF</span>
+    <span class="badge bp">MPPI / CEM / iCEM</span>
+  </div>
+</header>
+
+<div class="layout">
+<!-- ══ LEFT SIDEBAR ══ -->
+<aside class="sidebar">
+  <div>
+    <div class="sec">Algorithm</div>
+    <div class="tabs">
+      <button class="tab am" id="tab-mppi" data-algo="mppi" style="font-size:8px">MPPI</button>
+      <button class="tab"    id="tab-cem"  data-algo="cem"  style="font-size:8px">CEM</button>
+      <button class="tab"    id="tab-icem" data-algo="icem" style="font-size:8px">iCEM</button>
+    </div>
+    <button class="btn" id="btn-compare" style="margin-top:4px;width:100%;font-size:9px">⇄ Compare: OFF</button>
+    <div id="compare-panel" style="display:none;margin-top:5px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <div><div style="font-size:8px;color:var(--muted);margin-bottom:2px">Left</div>
+          <select id="sel-left" class="algo-sel">
+            <option value="mppi">MPPI</option><option value="cem">CEM</option><option value="icem">iCEM</option>
+          </select>
+        </div>
+        <div><div style="font-size:8px;color:var(--muted);margin-bottom:2px">Right</div>
+          <select id="sel-right" class="algo-sel">
+            <option value="mppi">MPPI</option><option value="cem" selected>CEM</option><option value="icem">iCEM</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="sec">Common</div>
+    <div class="pg">
+      <div class="pr"><div class="ph"><span class="pn">Horizon H</span><span class="pv" id="v-H">20</span></div><input type="range" id="s-H" min="5" max="40" value="20" step="5"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Samples K</span><span class="pv" id="v-K">200</span></div><input type="range" id="s-K" min="50" max="500" value="200" step="50"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Temperature λ</span><span class="pv" id="v-lam">0.05</span></div><input type="range" id="s-lam" min="0.01" max="0.5" value="0.05" step="0.01"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Alpha α</span><span class="pv" id="v-alpha">1.00</span></div><input type="range" id="s-alpha" min="0" max="1" value="1" step="0.05"/></div>
+    </div>
+  </div>
+  <div id="sec-mppi">
+    <div class="sec" style="color:var(--c1)">MPPI</div>
+    <div class="pg">
+      <div class="pr"><div class="ph"><span class="pn">Noise σ</span><span class="pv" id="v-sig">0.3</span></div><input type="range" id="s-sig" min="0.05" max="1.5" value="0.3" step="0.05"/></div>
+    </div>
+  </div>
+  <div id="sec-cem" style="display:none">
+    <div class="sec" style="color:var(--warn)">CEM</div>
+    <div class="pg">
+      <div class="pr"><div class="ph"><span class="pn">Iterations</span><span class="pv o" id="v-cni">4</span></div><input class="os" type="range" id="s-cni" min="1" max="10" value="4" step="1"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Elite %</span><span class="pv o" id="v-cef">10</span></div><input class="os" type="range" id="s-cef" min="5" max="40" value="10" step="5"/></div>
+      <div class="pr"><div class="ph"><span class="pn">σ_init</span><span class="pv o" id="v-csig">0.8</span></div><input class="os" type="range" id="s-csig" min="0.1" max="2.0" value="0.8" step="0.1"/></div>
+    </div>
+  </div>
+  <div id="sec-icem" style="display:none">
+    <div class="sec" style="color:var(--purple)">iCEM</div>
+    <div class="pg">
+      <div class="pr"><div class="ph"><span class="pn">Iterations</span><span class="pv p" id="v-ini">4</span></div><input class="ps" type="range" id="s-ini" min="1" max="10" value="4" step="1"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Elite %</span><span class="pv p" id="v-ief">10</span></div><input class="ps" type="range" id="s-ief" min="5" max="40" value="10" step="5"/></div>
+      <div class="pr"><div class="ph"><span class="pn">σ_init</span><span class="pv p" id="v-isig">0.8</span></div><input class="ps" type="range" id="s-isig" min="0.1" max="2.0" value="0.8" step="0.1"/></div>
+      <div class="pr"><div class="ph"><span class="pn">Color noise β</span><span class="pv p" id="v-ibc">1.0</span></div><input class="ps" type="range" id="s-ibc" min="0" max="3" value="1" step="0.5"/>
+        <div style="font-size:8px;color:var(--muted);margin-top:1px">0=white 1=pink 2=brown</div>
+      </div>
+      <div class="pr"><div class="ph"><span class="pn">Elite reuse %</span><span class="pv p" id="v-ier">30</span></div><input class="ps" type="range" id="s-ier" min="0" max="70" value="30" step="10"/></div>
+    </div>
+  </div>
+  <!-- Dynamics -->
+  <div>
+    <div class="sec" style="color:#fb923c">Dynamics Model</div>
+    <div class="tabs2">
+      <button class="tab" id="dyn-2nd" data-dyn="2nd" style="font-size:8px">2nd-Order</button>
+      <button class="tab" id="dyn-1st" data-dyn="1st" style="font-size:8px">1st-Order</button>
+    </div>
+    <div id="dyn-desc" style="margin-top:6px;padding:6px 8px;border-radius:var(--r);
+      background:var(--panel);border:1px solid var(--border);font-size:9px;
+      color:var(--muted);line-height:1.7"></div>
+  </div>
+  <!-- SG Filter -->
+  <div>
+    <div class="sec" style="color:#67e8f9">SG Smoothing
+      <button class="btn" id="btn-sg" style="float:right;padding:2px 7px;font-size:8px;
+        border-color:var(--border2);color:var(--muted)">OFF</button>
+    </div>
+    <div id="sg-params" style="opacity:.3;pointer-events:none">
+      <div class="pg" style="margin-top:4px">
+        <div class="pr"><div class="ph"><span class="pn">Window</span><span class="pv s" id="v-sgw">5</span></div>
+          <input class="ts" type="range" id="s-sgw" min="3" max="15" value="5" step="2"/></div>
+        <div class="pr"><div class="ph"><span class="pn">Poly Order</span><span class="pv s" id="v-sgo">2</span></div>
+          <input class="ts" type="range" id="s-sgo" min="1" max="4" value="2" step="1"/></div>
+      </div>
+    </div>
+  </div>
+  <!-- Joint Limit Cost Weight -->
+  <div>
+    <div class="sec" style="color:#fb923c">Joint Limit Barrier</div>
+    <div class="pg">
+      <div class="pr">
+        <div class="ph"><span class="pn">Weight w_jlim</span><span class="pv o" id="v-wjl">50</span></div>
+        <input class="os" type="range" id="s-wjl" min="10" max="200" value="50" step="10"/>
+        <div style="font-size:8px;color:var(--muted);margin-top:2px">
+          Soft barrier activates 0.15 rad · hard 0.05 rad from limit
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bg2">
+    <button class="btn primary" id="btn-start">▶ START</button>
+    <button class="btn danger"  id="btn-reset">↺ RESET</button>
+  </div>
+  <div>
+    <div class="sec">Random Seed</div>
+    <div class="seed-row">
+      <input class="seed-inp" type="number" id="inp-seed" value="42" min="0"/>
+      <button class="btn" id="btn-rnd" style="flex:0;padding:6px 9px">🎲</button>
+      <button class="btn" id="btn-seed-apply" style="flex:0;padding:6px 7px;font-size:8px">APPLY</button>
+    </div>
+  </div>
+  <div>
+    <div class="sec">Algorithm Note</div>
+    <div class="icard" id="ainfo">Select algorithm and press START.</div>
+  </div>
+</aside>
+
+<!-- ══ VIEWPORT ══ -->
+<div class="viewport" id="viewport">
+  <canvas id="renderer-canvas"></canvas>
+  <div class="gf" id="gf"></div>
+  <!-- Mesh load status -->
+  <div id="load-status" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    background:rgba(13,17,23,.85);border:1px solid var(--border);border-radius:20px;
+    padding:4px 12px;font-size:9px;color:var(--warn);transition:opacity 1s;
+    pointer-events:none;z-index:10">Loading meshes…</div>
+  <div class="pw">
+    <span id="plbl" style="color:var(--muted)">Idle</span>
+    <div class="pt"><div class="pf" id="pfill" style="width:0%"></div></div>
+    <span id="pstep" style="color:var(--muted)">0 / 600</span>
+  </div>
+</div>
+
+<!-- ══ RIGHT SIDEBAR ══ -->
+<aside class="sidebar right">
+  <div>
+    <div class="sec">EE Status</div>
+    <div class="sg">
+      <div class="sb"><span class="sl">Steps</span><span class="sv cy" id="st-s">0</span></div>
+      <div class="sb"><span class="sl">Dist (m)</span><span class="sv wn" id="st-d">—</span></div>
+      <div class="sb"><span class="sl">EE X</span><span class="sv" id="st-ex">—</span></div>
+      <div class="sb"><span class="sl">EE Y</span><span class="sv" id="st-ey">—</span></div>
+      <div class="sb"><span class="sl">EE Z</span><span class="sv" id="st-ez">—</span></div>
+      <div class="sb"><span class="sl">Σ Reward</span><span class="sv gn" id="st-r">0.0</span></div>
+    </div>
+  </div>
+
+  <!-- Goal position -->
+  <div>
+    <div class="sec">Goal EE Position
+      <button id="btn-reset-goal" style="float:right;background:none;border:none;
+        color:var(--muted);cursor:pointer;font-size:10px;padding:0">↺</button>
+    </div>
+    <div class="goal-row"><span class="glabel" style="color:#f87171">X</span>
+      <input class="goal-inp" type="number" id="g-x" value="0.50" step="0.01"/>
+      <input type="range" style="flex:1;height:3px" id="gs-x" min="-0.7" max="0.8" value="0.5" step="0.01"/>
+    </div>
+    <div class="goal-row"><span class="glabel" style="color:#86efac">Y</span>
+      <input class="goal-inp" type="number" id="g-y" value="0.00" step="0.01"/>
+      <input type="range" style="flex:1;height:3px" id="gs-y" min="-0.7" max="0.7" value="0.0" step="0.01"/>
+    </div>
+    <div class="goal-row"><span class="glabel" style="color:#93c5fd">Z</span>
+      <input class="goal-inp" type="number" id="g-z" value="0.50" step="0.01"/>
+      <input type="range" style="flex:1;height:3px" id="gs-z" min="0.05" max="1.1" value="0.5" step="0.01"/>
+    </div>
+  </div>
+
+  <!-- Goal orientation -->
+  <div>
+    <div class="sec">Goal EE Orientation
+      <button id="btn-reset-ori" style="float:right;background:none;border:none;
+        color:var(--muted);cursor:pointer;font-size:10px;padding:0">↺</button>
+    </div>
+    <!-- Ori cost toggle -->
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <button class="btn" id="btn-ori-toggle" style="flex:1;font-size:9px">Ori Cost: ON</button>
+      <div style="flex:1;display:flex;flex-direction:column;gap:1px">
+        <div style="font-size:8px;color:var(--muted)">Weight w_ori</div>
+        <input type="range" id="s-w-ori" min="0.1" max="5" value="1.5" step="0.1"
+          style="width:100%;height:3px"/>
+      </div>
+      <span class="pv s" id="v-w-ori" style="font-size:9px">1.5</span>
+    </div>
+    <!-- Euler angles ZYX (RPY) sliders -->
+    <div style="font-size:8px;color:var(--muted);margin-bottom:3px">Euler ZYX (degrees)</div>
+    <div class="goal-row">
+      <span class="glabel" style="color:#f87171;font-size:8px">R</span>
+      <input type="range" id="go-r" min="-180" max="180" value="0" step="1" style="flex:1;height:3px"/>
+      <input class="goal-inp" type="number" id="go-rv" value="0" step="1"/>
+    </div>
+    <div class="goal-row">
+      <span class="glabel" style="color:#86efac;font-size:8px">P</span>
+      <input type="range" id="go-p" min="-90" max="90" value="0" step="1" style="flex:1;height:3px"/>
+      <input class="goal-inp" type="number" id="go-pv" value="0" step="1"/>
+    </div>
+    <div class="goal-row">
+      <span class="glabel" style="color:#93c5fd;font-size:8px">Y</span>
+      <input type="range" id="go-y" min="-180" max="180" value="0" step="1" style="flex:1;height:3px"/>
+      <input class="goal-inp" type="number" id="go-yv" value="0" step="1"/>
+    </div>
+    <!-- Ori error display -->
+    <div style="margin-top:4px;font-size:9px;color:var(--muted)">
+      Ori error: <span id="st-oe" style="color:var(--warn)">—</span> rad
+      &nbsp;(<span id="st-oed">—</span>°)
+    </div>
+  </div>
+
+  <!-- Joint angles -->
+  <div>
+    <div class="sec">Joint Angles (rad)</div>
+    <div class="jt" id="joint-table"></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="cw"><div class="ct">Avg Sample Cost</div><canvas class="mini" id="ch-cost"></canvas></div>
+
+  <!-- Legend -->
+  <div>
+    <div class="sec">Legend</div>
+    <div style="display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted)">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:16px;height:2px;background:linear-gradient(90deg,#00e5ff,#ffdc00,#f63)"></div>
+        Rollout EE path (cost)
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:16px;height:2px;background:#fff;box-shadow:0 0 3px #0ff"></div>
+        Best rollout
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#39ff9a;flex-shrink:0"></div>
+        Goal EE position
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#ff4d6d;flex-shrink:0"></div>
+        Current EE
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+        <div style="display:flex;gap:2px;align-items:center">
+          <div style="width:10px;height:2px;background:#ff4444"></div>
+          <div style="width:10px;height:2px;background:#44ff44"></div>
+          <div style="width:10px;height:2px;background:#4499ff"></div>
+        </div>
+        Frame axes (X · Y · Z)
+      </div>
+    </div>
+  </div>
+</aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/ColladaLoader.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════
+const PROTO = location.protocol === 'https:' ? 'wss' : 'ws';
+let ws = null, wsReady = false;
+function connect(){
+  ws = new WebSocket(`${PROTO}://${location.host}/ws`);
+  ws.onopen  = ()=>{ wsReady=true; setDot(true); };
+  ws.onclose = ()=>{ wsReady=false; setDot(false); setTimeout(connect,2000); };
+  ws.onerror = ()=>{ wsReady=false; setDot(false); };
+  ws.onmessage = e => onMessage(JSON.parse(e.data));
+}
+function send(obj){ if(wsReady) ws.send(JSON.stringify(obj)); }
+function setDot(ok){
+  document.getElementById('ws-dot').className = ok?'ok':'';
+  document.getElementById('ws-lbl').textContent = ok?'connected':'disconnected';
+}
+
+// ═══════════════════════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════════════════════
+let SS = {
+  active_algos:['mppi'], step:0, running:false, goal_reached:false,
+  total_reward:0, joint_positions:[], ee_pos:[0,0,0], ee_quat:[0,0,0,1],
+  goal_pos:[0.5,0,0.5], goal_quat:[0,0,0,1],
+  dist_to_goal:0, ori_error:0, use_ori_cost:true,
+  dyn_model:'2nd', agents:{}
+};
+
+// ═══════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════
+const VP  = document.getElementById('viewport');
+const CVS = document.getElementById('renderer-canvas');
+const renderer = new THREE.WebGLRenderer({canvas:CVS, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x080c10);
+scene.fog = new THREE.FogExp2(0x080c10, 0.15);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 50);
+camera.up.set(0, 0, 1);           // Z-up world
+camera.position.set(1.8, -1.5, 1.2);
+camera.lookAt(0, 0, 0.5);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+dirLight.position.set(2, -1, 3);
+dirLight.castShadow = true;
+scene.add(dirLight);
+const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+fillLight.position.set(-2, 2, 0);
+scene.add(fillLight);
+
+// Grid at z=0 plane — use GridHelper and rotate to z-up
+const grid = new THREE.GridHelper(2.0, 20, 0x1e2d3d, 0x111820);
+grid.rotation.x = Math.PI / 2;    // GridHelper is XZ by default (Y-up); rotate so XY (Z-up)
+scene.add(grid);
+
+// Base plate
+const basePlate = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.08, 0.08, 0.02, 32),
+  new THREE.MeshStandardMaterial({color:0x243447, metalness:0.6, roughness:0.4})
+);
+basePlate.rotation.x = Math.PI / 2;   // Y-up cylinder → Z-up
+scene.add(basePlate);
+
+// ── Simple OrbitControls ──────────────────────────────
+let orbit = {
+  spherical: {r:2.4, phi:Math.PI/4, theta:-Math.PI/6},
+  target: new THREE.Vector3(0, 0, 0.5),
+  dragging: false, prevX:0, prevY:0,
+};
+function updateCamera(){
+  const {r,phi,theta} = orbit.spherical;
+  const x = r * Math.sin(phi) * Math.cos(theta);
+  const y = r * Math.sin(phi) * Math.sin(theta);
+  const z = r * Math.cos(phi);
+  camera.position.set(
+    orbit.target.x + x,
+    orbit.target.y + y,
+    orbit.target.z + z
+  );
+  camera.lookAt(orbit.target);
+}
+CVS.addEventListener('mousedown', e=>{
+  if(e.button===2||e.button===1) return;
+  if(goalDrag.active) return;
+  orbit.dragging=true; orbit.prevX=e.clientX; orbit.prevY=e.clientY;
+});
+window.addEventListener('mousemove', e=>{
+  if(!orbit.dragging) return;
+  const dx=(e.clientX-orbit.prevX)*0.008;
+  const dy=(e.clientY-orbit.prevY)*0.008;
+  orbit.spherical.theta -= dx;
+  orbit.spherical.phi   = Math.max(0.05, Math.min(Math.PI*0.9, orbit.spherical.phi + dy));
+  orbit.prevX=e.clientX; orbit.prevY=e.clientY;
+  updateCamera();
+});
+window.addEventListener('mouseup', ()=>{ orbit.dragging=false; });
+CVS.addEventListener('wheel', e=>{
+  orbit.spherical.r = Math.max(0.3, Math.min(5, orbit.spherical.r + e.deltaY*0.002));
+  updateCamera();
+}, {passive:true});
+// Right-click pan
+CVS.addEventListener('contextmenu', e=>e.preventDefault());
+CVS.addEventListener('mousedown', e=>{
+  if(e.button!==2) return;
+  orbit.panning=true; orbit.prevX=e.clientX; orbit.prevY=e.clientY;
+});
+window.addEventListener('mousemove', e=>{
+  if(!orbit.panning) return;
+  const dx=(e.clientX-orbit.prevX)*0.002;
+  const dy=(e.clientY-orbit.prevY)*0.002;
+  // Pan in camera's tangent plane
+  const right = new THREE.Vector3().crossVectors(
+    new THREE.Vector3().subVectors(orbit.target, camera.position).normalize(),
+    camera.up
+  ).normalize();
+  const up2 = camera.up.clone();
+  orbit.target.addScaledVector(right, dx);
+  orbit.target.addScaledVector(up2, -dy);
+  orbit.prevX=e.clientX; orbit.prevY=e.clientY;
+  updateCamera();
+});
+window.addEventListener('mouseup', ()=>{ orbit.panning=false; });
+
+// ─── Resize ──────────────────────────────────────────
+function resize(){
+  const w=VP.clientWidth, h=VP.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+// ═══════════════════════════════════════════════════════
+// ROBOT RENDERER — URDF mesh-based
+// ═══════════════════════════════════════════════════════
+const ALGO_COLORS = {mppi:0x00e5ff, cem:0xf5a623, icem:0xb084ff};
+const ALGO_COLORS_CSS = {mppi:'#00e5ff', cem:'#f5a623', icem:'#b084ff'};
+
+// ── Fallback procedural materials ────────────────────
+const FALLBACK_LINK_MATS = [
+  0x2a4a6e,0x1e3a5f,0x163256,0x0f2a4a,0x0a2040,0x061836,0x03102c,0x010820
+].map(c=>new THREE.MeshStandardMaterial({color:c,metalness:0.65,roughness:0.35}));
+const EE_MAT   = new THREE.MeshStandardMaterial({color:0xff4d6d,metalness:0.4,
+  roughness:0.3,emissive:0xff4d6d,emissiveIntensity:0.4});
+const GOAL_MAT = new THREE.MeshStandardMaterial({color:0x39ff9a,transparent:true,
+  opacity:0.35,side:THREE.DoubleSide});
+const GOAL_RING_MAT = new THREE.MeshStandardMaterial({color:0x39ff9a,wireframe:true});
+
+// ── Robot scene graph ─────────────────────────────────
+// jointObjects[i] = {frame: Object3D, rotation: Object3D}
+// frame holds the fixed joint-origin transform
+// rotation is the child that spins by q[i] around the joint axis
+let jointObjects = [];    // [{frame, rotation, axis}]
+let linkObjects  = {};    // linkName → Object3D (holds mesh)
+let urdfData     = null;  // parsed URDF JSON from /api/urdf
+let meshLoaded   = false;
+
+const robotRoot = new THREE.Group();
+scene.add(robotRoot);
+
+// ── RPY → Quaternion (URDF intrinsic XYZ = extrinsic ZYX) ──
+function rpyToQuaternion(rpy){
+  const [r,p,y] = rpy;
+  const q = new THREE.Quaternion();
+  q.setFromEuler(new THREE.Euler(r, p, y, 'XYZ'));
+  return q;
+}
+
+// ── Build Three.js scene graph from URDF JSON ─────────
+function buildSceneGraph(data){
+  urdfData = data;
+  jointObjects = [];
+  linkObjects  = {};
+
+  // Create an Object3D for each link
+  for(const lname of Object.keys(data.links)){
+    const obj = new THREE.Group();
+    obj.name  = lname;
+    linkObjects[lname] = obj;
+  }
+
+  // Attach root link to robotRoot
+  if(data.root_link && linkObjects[data.root_link]){
+    robotRoot.add(linkObjects[data.root_link]);
+  }
+
+  // Build joint chain: for each joint, attach child link under parent
+  for(const j of data.joints){
+    const parent = linkObjects[j.parent_link];
+    const child  = linkObjects[j.child_link];
+    if(!parent || !child) continue;
+
+    // Frame: fixed joint-origin transform
+    const frame = new THREE.Group();
+    frame.name = j.name + '_frame';
+    frame.position.set(...j.origin_xyz);
+    frame.quaternion.copy(rpyToQuaternion(j.origin_rpy));
+
+    // Rotation: spins by joint angle around joint axis
+    const rotation = new THREE.Group();
+    rotation.name = j.name + '_rot';
+
+    frame.add(rotation);
+    rotation.add(child);
+    parent.add(frame);
+
+    jointObjects.push({
+      frame, rotation,
+      axis: new THREE.Vector3(...j.axis).normalize(),
+      type: j.type,
+    });
+  }
+}
+
+// ── Apply joint angles to scene graph ─────────────────
+function applyJointAngles(q){
+  // q: array of 7 revolute joint angles
+  let qi = 0;
+  for(const jo of jointObjects){
+    if(jo.type === 'fixed') continue;
+    const angle = q[qi++] || 0;
+    jo.rotation.quaternion.setFromAxisAngle(jo.axis, angle);
+  }
+}
+
+// ── Load OBJ meshes for each link ─────────────────────
+// ─────────────────────────────────────────────────────
+// Helpers: infer MTL path from OBJ URL
+// e.g. ".../meshes/visual/link1.obj" → ".../meshes/visual/link1.mtl"
+function mtlUrlFrom(objUrl){
+  return objUrl.replace(/\.obj$/i, '.mtl');
+}
+function baseDirFrom(url){
+  return url.substring(0, url.lastIndexOf('/') + 1);
+}
+
+// Quick HEAD request to check if a URL exists (returns bool)
+async function urlExists(url){
+  try{
+    const r = await fetch(url, {method:'HEAD'});
+    return r.ok;
+  } catch(e){ return false; }
+}
+
+// ─────────────────────────────────────────────────────
+// Load one OBJ, using MTL if available.
+// Returns {lname, ok, hasMtl}
+function loadOneOBJ(objLoader, mtlLoader, lname, vis){
+  return new Promise(async resolve=>{
+    const objUrl = vis.mesh_url;
+    const mtlUrl = mtlUrlFrom(objUrl);
+    const baseDir = baseDirFrom(objUrl);
+
+    const FALLBACK_MAT = new THREE.MeshStandardMaterial({
+      color:0xd4d4d4, metalness:0.55, roughness:0.4, side:THREE.DoubleSide
+    });
+
+    const applyObj = (obj, hasMtl)=>{
+      obj.position.set(...vis.origin_xyz);
+      obj.quaternion.copy(rpyToQuaternion(vis.origin_rpy));
+      obj.scale.set(...vis.scale);
+      if(!hasMtl){
+        obj.traverse(child=>{
+          if(child.isMesh){
+            child.material = FALLBACK_MAT.clone();
+            child.castShadow = child.receiveShadow = true;
+          }
+        });
+      } else {
+        obj.traverse(child=>{
+          if(child.isMesh){
+            child.castShadow = child.receiveShadow = true;
+            // Ensure proper side rendering for thin meshes
+            if(child.material) child.material.side = THREE.DoubleSide;
+          }
+        });
+      }
+      linkObjects[lname]?.add(obj);
+    };
+
+    const hasMtl = await urlExists(mtlUrl);
+
+    if(hasMtl && mtlLoader){
+      // ── MTL path: load materials first, then OBJ ──
+      mtlLoader.setPath(baseDir);
+      mtlLoader.load(
+        mtlUrl.split('/').pop(),   // filename only (path set above)
+        (materials)=>{
+          materials.preload();
+          // Patch: ensure textures use correct path
+          for(const mat of Object.values(materials.materials)){
+            if(mat.map)      mat.map.anisotropy      = 4;
+            if(mat.normalMap) mat.normalMap.anisotropy = 4;
+          }
+          objLoader.setMaterials(materials);
+          objLoader.setPath(baseDir);
+          objLoader.load(
+            objUrl.split('/').pop(),
+            (obj)=>{ applyObj(obj, true); resolve({lname, ok:true, hasMtl:true}); },
+            null,
+            ()=>{ addFallbackGeometry(lname, vis); resolve({lname, ok:false, hasMtl:true}); }
+          );
+        },
+        null,
+        ()=>{
+          // MTL HEAD said ok but load failed — try bare OBJ
+          objLoader.setMaterials(null);
+          objLoader.setPath('');
+          objLoader.load(
+            objUrl,
+            (obj)=>{ applyObj(obj, false); resolve({lname, ok:true, hasMtl:false}); },
+            null,
+            ()=>{ addFallbackGeometry(lname, vis); resolve({lname, ok:false, hasMtl:false}); }
+          );
+        }
+      );
+    } else {
+      // ── No MTL: load OBJ with default material ──
+      objLoader.setMaterials(null);
+      objLoader.setPath('');
+      objLoader.load(
+        objUrl,
+        (obj)=>{ applyObj(obj, false); resolve({lname, ok:true, hasMtl:false}); },
+        null,
+        ()=>{ addFallbackGeometry(lname, vis); resolve({lname, ok:false, hasMtl:false}); }
+      );
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Load one DAE (Collada) mesh.
+// ColladaLoader returns {scene, animations, kinematics, ...}
+// scene is already a Three.js Object3D with embedded materials.
+function loadOneDAE(daeLoader, lname, vis){
+  return new Promise(resolve=>{
+    const daeUrl  = vis.mesh_url;
+    const baseDir = baseDirFrom(daeUrl);
+
+    // setResourcePath allows DAE-embedded texture refs to resolve correctly
+    daeLoader.setResourcePath(baseDir);
+
+    daeLoader.load(
+      daeUrl,
+      (collada)=>{
+        const obj = collada.scene;
+
+        // Apply URDF visual origin transform
+        obj.position.set(...vis.origin_xyz);
+        obj.quaternion.copy(rpyToQuaternion(vis.origin_rpy));
+        obj.scale.set(...vis.scale);
+
+        // Enable shadows; ensure double-side for thin surfaces
+        obj.traverse(child=>{
+          if(!child.isMesh) return;
+          child.castShadow    = true;
+          child.receiveShadow = true;
+          // Collada materials are usually already correct,
+          // but patch side rendering just in case
+          if(Array.isArray(child.material)){
+            child.material.forEach(m=>{ m.side=THREE.DoubleSide; });
+          } else if(child.material){
+            child.material.side = THREE.DoubleSide;
+          }
+        });
+
+        linkObjects[lname]?.add(obj);
+        resolve({lname, ok:true, format:'dae'});
+      },
+      null,   // onProgress
+      (err)=>{
+        console.warn(`DAE load failed for ${lname}:`, err);
+        addFallbackGeometry(lname, vis);
+        resolve({lname, ok:false, format:'dae'});
+      }
+    );
+  });
+}
+
+// ─────────────────────────────────────────────────────
+async function loadMeshes(data){
+  const ObjLoaderCls = THREE.OBJLoader  || window.OBJLoader;
+  const MtlLoaderCls = THREE.MTLLoader  || window.MTLLoader;
+  const StlLoaderCls = THREE.STLLoader  || window.STLLoader;
+  const DaeLoaderCls = THREE.ColladaLoader || window.ColladaLoader;
+
+  if(!ObjLoaderCls && !DaeLoaderCls && !StlLoaderCls){
+    console.warn('No mesh loaders available — using procedural fallback');
+    for(const [lname, ldata] of Object.entries(data.links))
+      for(const vis of ldata.visuals) addFallbackGeometry(lname, vis);
+    updateLoadStatus(0, Object.keys(data.links).length);
+    return;
+  }
+
+  const objLoader = new ObjLoaderCls();
+  const mtlLoader = MtlLoaderCls ? new MtlLoaderCls() : null;
+  const stlLoader = StlLoaderCls ? new StlLoaderCls() : null;
+  const daeLoader = DaeLoaderCls ? new DaeLoaderCls() : null;
+
+  // Quick probe: check if mesh files are accessible at all
+  const testUrl = Object.values(data.links)
+    .flatMap(l=>l.visuals).find(v=>v.mesh_url)?.mesh_url;
+  if(testUrl){
+    const ok = await urlExists(testUrl);
+    if(!ok){ showMeshHelp(data); return; }
+  }
+
+  const loadPromises = [];
+  for(const [lname, ldata] of Object.entries(data.links)){
+    for(const vis of ldata.visuals){
+      if(!vis.mesh_url) continue;
+      const ext = vis.mesh_url.split('.').pop().toLowerCase();
+
+      if(ext === 'dae' && daeLoader){
+        // ── Collada: materials & textures embedded in the file ──
+        // Each link gets its own loader instance (resource path is per-load)
+        const dl = new DaeLoaderCls();
+        loadPromises.push(loadOneDAE(dl, lname, vis));
+
+      } else if(ext === 'stl' && stlLoader){
+        // ── STL: geometry only, apply standard material ──
+        const p = new Promise(resolve=>{
+          stlLoader.load(vis.mesh_url,
+            (geo)=>{
+              geo.computeVertexNormals();
+              const mat  = new THREE.MeshStandardMaterial({
+                color:0xd4d4d4, metalness:0.55, roughness:0.4, side:THREE.DoubleSide});
+              const mesh = new THREE.Mesh(geo, mat);
+              mesh.position.set(...vis.origin_xyz);
+              mesh.quaternion.copy(rpyToQuaternion(vis.origin_rpy));
+              mesh.scale.set(...vis.scale);
+              mesh.castShadow = mesh.receiveShadow = true;
+              linkObjects[lname]?.add(mesh);
+              resolve({lname, ok:true, format:'stl'});
+            }, null,
+            ()=>{ addFallbackGeometry(lname,vis); resolve({lname, ok:false, format:'stl'}); }
+          );
+        });
+        loadPromises.push(p);
+
+      } else if(ObjLoaderCls){
+        // ── OBJ (+ optional MTL) ──
+        // Each link gets its own loader instance to avoid setMaterials cross-contamination
+        const ol = new ObjLoaderCls();
+        const ml = MtlLoaderCls ? new MtlLoaderCls() : null;
+        loadPromises.push(loadOneOBJ(ol, ml, lname, vis));
+
+      } else {
+        // No suitable loader available
+        addFallbackGeometry(lname, vis);
+        loadPromises.push(Promise.resolve({lname, ok:false, format:'unknown'}));
+      }
+    }
+  }
+
+  const results  = await Promise.allSettled(loadPromises);
+  const vals     = results.map(r=>r.value||{});
+  const failed   = vals.filter(v=>!v.ok).length;
+  const loaded   = vals.filter(v=> v.ok).length;
+  const withMtl  = vals.filter(v=> v.ok && v.hasMtl).length;
+  const daeCount = vals.filter(v=> v.ok && v.format==='dae').length;
+  const stlCount = vals.filter(v=> v.ok && v.format==='stl').length;
+
+  console.log(
+    `Meshes loaded: ${loaded} `+
+    `(OBJ/MTL:${withMtl} DAE:${daeCount} STL:${stlCount}) `+
+    `| fallback:${failed}`
+  );
+  meshLoaded = true;
+  updateLoadStatus(loaded, failed, withMtl, daeCount, stlCount);
+}
+
+// ── Show directory helper when mesh files are missing ─
+async function showMeshHelp(data){
+  // Fetch diagnostic info from /api/check-meshes
+  let hint = '';
+  try{
+    const r = await fetch('/api/check-meshes');
+    const d = await r.json();
+    hint = d.hint || '';
+  } catch(e){}
+
+  const urls = [...new Set(
+    Object.values(data.links)
+      .flatMap(l=>l.visuals)
+      .map(v=>v.mesh_url)
+      .filter(Boolean)
+  )];
+
+  const el = document.getElementById('load-status');
+  if(el){
+    el.style.cssText += ';max-width:90%;white-space:normal;text-align:center;' +
+      'background:rgba(13,17,23,.95);padding:8px 14px;border-radius:8px;' +
+      'border-color:#f5a623;font-size:9px;line-height:1.8';
+    el.innerHTML =
+      `<strong style="color:#f5a623">⚠ Mesh files not found</strong><br>` +
+      `Using fallback geometry. To use real meshes place files at:<br>` +
+      `<span style="color:#67e8f9;font-size:8px">${hint}</span><br>` +
+      `<span style="color:#4a6480">Expected: ${urls.map(u=>u.split('/').pop()).join(', ')}</span>`;
+  }
+  // Still build fallback scene
+  for(const [lname, ldata] of Object.entries(data.links)){
+    for(const vis of ldata.visuals) addFallbackGeometry(lname, vis);
+  }
+  meshLoaded = true;
+}
+
+// ── Fallback geometry when mesh file is missing ───────
+function addFallbackGeometry(lname, vis){
+  const idx = Object.keys(urdfData?.links||{}).indexOf(lname);
+  const mat = FALLBACK_LINK_MATS[Math.max(0, idx % FALLBACK_LINK_MATS.length)];
+  const geo = new THREE.CapsuleGeometry ? 
+    new THREE.CapsuleGeometry(0.028, 0.08, 4, 8) :
+    new THREE.SphereGeometry(0.035, 8, 6);
+  const mesh = new THREE.Mesh(geo, mat.clone());
+  mesh.position.set(...(vis.origin_xyz||[0,0,0]));
+  mesh.castShadow = true;
+  linkObjects[lname]?.add(mesh);
+}
+
+// ── Load status overlay ───────────────────────────────
+function updateLoadStatus(loaded, failed, withMtl=0, daeCount=0, stlCount=0){
+  const el = document.getElementById('load-status');
+  if(!el) return;
+  if(failed === 0 && loaded > 0){
+    const parts = [];
+    const objOnly = loaded - withMtl - daeCount - stlCount;
+    if(withMtl > 0)  parts.push(`${withMtl} OBJ+MTL`);
+    if(objOnly > 0)  parts.push(`${objOnly} OBJ`);
+    if(daeCount > 0) parts.push(`${daeCount} DAE`);
+    if(stlCount > 0) parts.push(`${stlCount} STL`);
+    el.textContent = `✓ ${loaded} meshes  [${parts.join(' · ')}]`;
+    el.style.color = '#39ff9a';
+  } else if(loaded === 0){
+    el.textContent = '⚠ Mesh files not found — using fallback geometry';
+    el.style.color = '#f5a623';
+  } else {
+    el.textContent = `${loaded} loaded, ${failed} fallback`;
+    el.style.color = '#f5a623';
+  }
+  setTimeout(()=>{ if(el) el.style.opacity='0.4'; }, 5000);
+}
+
+// ── Coordinate Frame Axes (RGB = XYZ) ────────────────
+// Builds a 3-axis coordinate frame with cylinder shafts + cone tips.
+// depthTest:false so the frame always renders on top.
+function makeAxesFrame(len=0.09, shaftR=0.004){
+  const group = new THREE.Group();
+  const axes  = [
+    {dir:new THREE.Vector3(1,0,0), color:0xff3333, label:'X'},
+    {dir:new THREE.Vector3(0,1,0), color:0x33cc44, label:'Y'},
+    {dir:new THREE.Vector3(0,0,1), color:0x3399ff, label:'Z'},
+  ];
+  const up = new THREE.Vector3(0,1,0);
+
+  for(const {dir, color} of axes){
+    const mat = new THREE.MeshBasicMaterial({color, depthTest:false, depthWrite:false});
+
+    // Shaft cylinder
+    const shaftLen = len * 0.72;
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(shaftR, shaftR, shaftLen, 8),
+      mat
+    );
+    shaft.position.copy(dir.clone().multiplyScalar(shaftLen * 0.5));
+    shaft.quaternion.setFromUnitVectors(up, dir);
+    group.add(shaft);
+
+    // Cone tip
+    const coneH = len * 0.28;
+    const coneR = len * 0.06;
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(coneR, coneH, 8),
+      mat
+    );
+    cone.position.copy(dir.clone().multiplyScalar(shaftLen + coneH * 0.5));
+    cone.quaternion.setFromUnitVectors(up, dir);
+    group.add(cone);
+  }
+  group.renderOrder = 999;
+  return group;
+}
+
+// EE frame (FK result) — shown in white-ish hue to distinguish
+const eeAxes   = makeAxesFrame(0.10, 0.005);
+scene.add(eeAxes);
+
+// Goal frame — slightly larger, same colors
+const goalAxes = makeAxesFrame(0.12, 0.005);
+scene.add(goalAxes);
+
+// ── Apply quaternion [x,y,z,w] to Object3D ───────────
+function applyQuat(obj, qxyzw){
+  const [x,y,z,w] = qxyzw;
+  // Normalize defensively (server already normalises, but just in case)
+  const n = Math.sqrt(x*x+y*y+z*z+w*w) || 1;
+  obj.quaternion.set(x/n, y/n, z/n, w/n);
+}
+
+// ── Update robot pose from backend FK result ──────────
+// q_arr        : [7]  joint angles (for URDF scene graph)
+// jointPositions: [[x,y,z] × 9]  base + 7 joints + EE
+// ee_quat      : [x,y,z,w]  EE orientation from FK
+function updateRobotPose(q_arr, jointPositions, ee_quat){
+  // 1. Update URDF scene graph joint angles
+  if(q_arr && q_arr.length === 7 && urdfData){
+    applyJointAngles(q_arr);
+  }
+
+  // 2. Place EE sphere + SE(3) frame at FK EE position
+  if(jointPositions && jointPositions.length >= 9){
+    const eePos = jointPositions[8];
+    eeSphere.position.set(...eePos);
+    eeAxes.position.set(...eePos);
+  }
+
+  // 3. Apply EE orientation from FK
+  if(ee_quat && ee_quat.length === 4){
+    applyQuat(eeAxes, ee_quat);
+  }
+}
+
+// ── Update goal sphere + axes ─────────────────────────
+function updateGoal(goalPos, goalQuat){
+  const [x,y,z] = goalPos;
+  goalSphere.position.set(x,y,z);
+  goalRing.position.set(x,y,z);
+  goalAxes.position.set(x,y,z);
+  if(goalQuat) applyQuat(goalAxes, goalQuat);
+  const t = Date.now()/700;
+  goalSphere.scale.setScalar(1+0.08*Math.sin(t));
+  goalRing.rotation.x = t*0.5;
+  goalRing.rotation.y = t*0.3;
+}
+
+// Spheres (declared after axes so they render on top if needed)
+const eeSphere   = new THREE.Mesh(new THREE.SphereGeometry(0.018,16,12), EE_MAT);
+const goalSphere = new THREE.Mesh(new THREE.SphereGeometry(0.035,16,12), GOAL_MAT);
+const goalRing   = new THREE.Mesh(new THREE.TorusGeometry(0.055,0.004,8,32), GOAL_RING_MAT);
+scene.add(eeSphere); scene.add(goalSphere); scene.add(goalRing);
+
+const MAX_TRAIL = 300;
+let eeTrails = {};
+
+function ensureTrail(algo){
+  if(eeTrails[algo]) return;
+  const col = ALGO_COLORS[algo] || 0xffffff;
+  const positions = new Float32Array(MAX_TRAIL*3);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setDrawRange(0, 0);
+  const mat = new THREE.LineBasicMaterial({color:col,linewidth:2,transparent:true,opacity:0.75});
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  eeTrails[algo] = {geo, line, positions, count:0};
+}
+
+function updateTrail(algo, traj_ee){
+  ensureTrail(algo);
+  const t = eeTrails[algo];
+  const n = Math.min(traj_ee.length, MAX_TRAIL);
+  for(let i=0;i<n;i++){
+    const [x,y,z] = traj_ee[traj_ee.length-n+i];
+    t.positions[i*3]=x; t.positions[i*3+1]=y; t.positions[i*3+2]=z;
+  }
+  t.count = n;
+  t.geo.attributes.position.needsUpdate = true;
+  t.geo.setDrawRange(0, n);
+}
+
+function clearTrails(){
+  Object.values(eeTrails).forEach(t=>scene.remove(t.line));
+  eeTrails = {};
+}
+
+// ── Rollout EE lines ──────────────────────────────────
+const MAX_ROLLOUT_LINES = 22;
+let rolloutLinePool = [];
+
+function initRolloutPool(){
+  for(let i=0;i<MAX_ROLLOUT_LINES;i++){
+    const positions = new Float32Array(50*3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    geo.setDrawRange(0,0);
+    const mat = new THREE.LineBasicMaterial({color:0xffffff,linewidth:1,
+      transparent:true,opacity:0.5});
+    const line = new THREE.Line(geo, mat);
+    line.visible = false;
+    scene.add(line);
+    rolloutLinePool.push({geo, mat, line, positions});
+  }
+}
+initRolloutPool();
+
+function updateRolloutLines(trajs, costs, best_pos){
+  const n = Math.min(trajs.length, MAX_ROLLOUT_LINES);
+  const cMin=Math.min(...costs), cMax=Math.max(...costs), cRange=cMax-cMin||1;
+  for(let i=0;i<MAX_ROLLOUT_LINES;i++) rolloutLinePool[i].line.visible=false;
+  for(let ri=0;ri<n;ri++){
+    const t=rolloutLinePool[ri];
+    const pts=trajs[ri], np=Math.min(pts.length,50);
+    for(let j=0;j<np;j++){
+      t.positions[j*3]=pts[j][0]; t.positions[j*3+1]=pts[j][1]; t.positions[j*3+2]=pts[j][2];
+    }
+    t.geo.attributes.position.needsUpdate=true;
+    t.geo.setDrawRange(0,np);
+    const tn=Math.max(0,Math.min(1,(costs[ri]-cMin)/cRange));
+    if(ri===best_pos){ t.mat.color.setHex(0xffffff); t.mat.opacity=0.9; }
+    else             { t.mat.color.set(costColor(tn)); t.mat.opacity=0.15+(1-tn)*0.4; }
+    t.line.visible=true;
+  }
+}
+
+function costColor(t){
+  t=Math.max(0,Math.min(1,t));
+  if(t<0.5){ const f=t*2; return new THREE.Color(f,0.86+f*0.14,1-f); }
+  else      { const f=(t-.5)*2; return new THREE.Color(1,1-f,0); }
+}
+
+// ── Update goal sphere ────────────────────────────────
+function updateGoal(goal){
+  const [x,y,z] = goal;
+  goalSphere.position.set(x,y,z);
+  goalRing.position.set(x,y,z);
+  const t = Date.now()/700;
+  goalSphere.scale.setScalar(1+0.08*Math.sin(t));
+  goalRing.rotation.x = t*0.5;
+  goalRing.rotation.y = t*0.3;
+}
+
+// ── Goal drag ─────────────────────────────────────────
+const goalDrag = {active:false, plane: new THREE.Plane()};
+const raycaster = new THREE.Raycaster();
+const mouse2    = new THREE.Vector2();
+
+function screenToRay(e){
+  const r = CVS.getBoundingClientRect();
+  mouse2.x = ((e.clientX-r.left)/r.width)*2-1;
+  mouse2.y = -((e.clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(mouse2, camera);
+}
+
+CVS.addEventListener('mousedown', e=>{
+  if(e.button!==0) return;
+  screenToRay(e);
+  const hits = raycaster.intersectObject(goalSphere);
+  if(hits.length>0){
+    goalDrag.active = true;
+    orbit.dragging  = false;
+    // Drag plane: horizontal through current goal
+    goalDrag.plane.setFromNormalAndCoplanarPoint(
+      new THREE.Vector3(0,0,1), goalSphere.position);
+    e.stopPropagation();
+  }
+});
+window.addEventListener('mousemove', e=>{
+  if(!goalDrag.active) return;
+  screenToRay(e);
+  const pt = new THREE.Vector3();
+  if(raycaster.ray.intersectPlane(goalDrag.plane, pt)){
+    const gx=parseFloat(pt.x.toFixed(2));
+    const gy=parseFloat(pt.y.toFixed(2));
+    const gz=parseFloat(goalSphere.position.z.toFixed(2));
+    setGoal(gx, gy, gz, false);
+    goalAxes.position.set(gx, gy, gz);  // keep axes in sync during drag
+  }
+});
+window.addEventListener('mouseup', e=>{
+  if(goalDrag.active){
+    goalDrag.active = false;
+    sendGoal();
+  }
+});
+
+let _goalThrottle = 0;
+
+// Convert Euler ZYX degrees → quaternion [x,y,z,w]
+function eulerToQuat(rollDeg, pitchDeg, yawDeg){
+  const r = rollDeg  * Math.PI/180;
+  const p = pitchDeg * Math.PI/180;
+  const y = yawDeg   * Math.PI/180;
+  // XYZ extrinsic = ZYX intrinsic (URDF RPY convention)
+  const cr=Math.cos(r/2), sr=Math.sin(r/2);
+  const cp=Math.cos(p/2), sp=Math.sin(p/2);
+  const cy=Math.cos(y/2), sy=Math.sin(y/2);
+  return [
+    sr*cp*cy - cr*sp*sy,  // x
+    cr*sp*cy + sr*cp*sy,  // y
+    cr*cp*sy - sr*sp*cy,  // z
+    cr*cp*cy + sr*sp*sy,  // w
+  ];
+}
+
+function getGoalQuat(){
+  const r = +document.getElementById('go-r').value;
+  const p = +document.getElementById('go-p').value;
+  const y = +document.getElementById('go-y').value;
+  return eulerToQuat(r, p, y);
+}
+
+function setGoal(x, y, z, sendNow=true){
+  document.getElementById('g-x').value = x.toFixed(2);
+  document.getElementById('g-y').value = y.toFixed(2);
+  document.getElementById('g-z').value = z.toFixed(2);
+  document.getElementById('gs-x').value = x;
+  document.getElementById('gs-y').value = y;
+  document.getElementById('gs-z').value = z;
+  // Update goal sphere position immediately
+  goalSphere.position.set(x,y,z);
+  goalRing.position.set(x,y,z);
+  goalAxes.position.set(x,y,z);
+  if(sendNow) sendGoal();
+}
+
+function sendGoal(){
+  const x = +document.getElementById('g-x').value;
+  const y = +document.getElementById('g-y').value;
+  const z = +document.getElementById('g-z').value;
+  const quat = getGoalQuat();
+  send({type:'set_goal', goal:{pos:[x,y,z], quat}});
+}
+
+// Orientation controls wiring
+['r','p','y'].forEach(ax=>{
+  document.getElementById('go-'+ax).addEventListener('input', e=>{
+    document.getElementById('go-'+ax+'v').value = e.target.value;
+    const q = getGoalQuat();
+    goalAxes.quaternion.set(q[0],q[1],q[2],q[3]);
+    send({type:'set_goal_ori_only', quat:q});
+  });
+  document.getElementById('go-'+ax+'v').addEventListener('change', e=>{
+    document.getElementById('go-'+ax).value = e.target.value;
+    const q = getGoalQuat();
+    goalAxes.quaternion.set(q[0],q[1],q[2],q[3]);
+    send({type:'set_goal_ori_only', quat:q});
+  });
+});
+
+// Orientation cost weight
+document.getElementById('s-w-ori').addEventListener('input', e=>{
+  document.getElementById('v-w-ori').textContent = (+e.target.value).toFixed(1);
+  send({type:'set_ori_weight', w_ori:+e.target.value, use_ori:oriCostOn});
+});
+
+let oriCostOn = true;
+document.getElementById('btn-ori-toggle').addEventListener('click',()=>{
+  oriCostOn = !oriCostOn;
+  const btn = document.getElementById('btn-ori-toggle');
+  btn.textContent = oriCostOn ? 'Ori Cost: ON' : 'Ori Cost: OFF';
+  btn.style.borderColor = oriCostOn ? '#67e8f9' : '';
+  btn.style.color       = oriCostOn ? '#67e8f9' : '';
+  send({type:'set_ori_weight', w_ori:+document.getElementById('s-w-ori').value, use_ori:oriCostOn});
+});
+
+document.getElementById('btn-reset-ori').addEventListener('click',()=>{
+  ['r','p','y'].forEach(ax=>{
+    document.getElementById('go-'+ax).value  = 0;
+    document.getElementById('go-'+ax+'v').value = 0;
+  });
+  goalAxes.quaternion.set(0,0,0,1);
+  send({type:'set_goal_ori_only', quat:[0,0,0,1]});
+});
+
+// ═══════════════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════════════
+function animate(){
+  requestAnimationFrame(animate);
+  // Pulse goal ring
+  const t = Date.now()/700;
+  goalSphere.scale.setScalar(1+0.08*Math.sin(t));
+  goalRing.rotation.x = t*0.5;
+  goalRing.rotation.y = t*0.3;
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════════════
+// MESSAGE HANDLER
+// ═══════════════════════════════════════════════════════
+function onMessage(data){
+  if(data.type !== 'state') return;
+  SS = data;
+
+  const k0  = (SS.active_algos||['mppi'])[0];
+  const ag0 = SS.agents[k0];
+  updateRobotPose(ag0?.q||[], SS.joint_positions, SS.ee_quat);
+
+  // Update goal (position + orientation)
+  if(SS.goal_pos) updateGoal(SS.goal_pos, SS.goal_quat);
+
+  // Update EE trails and rollout lines per algo
+  for(const k of SS.active_algos){
+    const ag = SS.agents[k];
+    if(!ag) continue;
+    updateTrail(k, ag.traj_ee || []);
+    if(ag.rollout_ee_trajs && ag.rollout_ee_trajs.length > 0){
+      updateRolloutLines(ag.rollout_ee_trajs, ag.rollout_costs||[], ag.best_pos||0);
+    }
+  }
+
+  updateUI();
+  drawCostChart();
+
+  if(SS.goal_reached){
+    document.getElementById('gf').classList.add('show');
+    setTimeout(()=>document.getElementById('gf').classList.remove('show'), 1000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// UI UPDATE
+// ═══════════════════════════════════════════════════════
+function updateUI(){
+  document.getElementById('st-s').textContent = SS.step;
+  document.getElementById('st-d').textContent = SS.dist_to_goal?.toFixed(3) ?? '—';
+  document.getElementById('st-r').textContent = SS.total_reward?.toFixed(1) ?? '0.0';
+
+  // Orientation error
+  if(SS.ori_error !== undefined){
+    const rad = SS.ori_error;
+    const deg = (rad * 180 / Math.PI).toFixed(1);
+    document.getElementById('st-oe').textContent  = rad.toFixed(3);
+    document.getElementById('st-oed').textContent = deg;
+    document.getElementById('st-oe').style.color  =
+      rad < 0.1 ? '#39ff9a' : rad < 0.3 ? '#f5a623' : '#ff4d6d';
+  }
+  document.getElementById('pfill').style.width = Math.min(SS.step/600*100,100)+'%';
+  document.getElementById('pstep').textContent = `${SS.step} / 600`;
+
+  const k = (SS.active_algos||['mppi'])[0];
+  const ag = SS.agents[k];
+  if(ag){
+    const ee = SS.ee_pos;
+    document.getElementById('st-ex').textContent = ee[0].toFixed(3);
+    document.getElementById('st-ey').textContent = ee[1].toFixed(3);
+    document.getElementById('st-ez').textContent = ee[2].toFixed(3);
+
+    // Update joint table
+    const Q_MIN = [-2.8973,-1.7628,-2.8973,-3.0718,-2.8973,-0.0175,-2.8973];
+    const Q_MAX = [ 2.8973, 1.7628, 2.8973,-0.0698, 2.8973, 3.7525, 2.8973];
+    const tbl = document.getElementById('joint-table');
+    if(tbl.children.length===0){
+      for(let i=0;i<7;i++){
+        const row = document.createElement('div');
+        row.className='jr';
+        row.innerHTML=`<span class="ji">q${i+1}</span>
+          <div class="jbar"><div class="jfill" id="jf${i}" style="background:${ALGO_COLORS_CSS[k]||'#00e5ff'}"></div></div>
+          <span class="jv" id="jv${i}">0.000</span>`;
+        tbl.appendChild(row);
+      }
+    }
+    const q = ag.q || [];
+    for(let i=0;i<7;i++){
+      const qi = q[i]||0;
+      const pct = ((qi-Q_MIN[i])/(Q_MAX[i]-Q_MIN[i])*100).toFixed(1);
+      const el = document.getElementById('jf'+i);
+      if(el){ el.style.width=pct+'%'; }
+      const vl = document.getElementById('jv'+i);
+      if(vl){ vl.textContent=qi.toFixed(3); }
+    }
+  }
+
+  document.getElementById('btn-start').textContent =
+    SS.running ? '⏸ PAUSE' : (SS.goal_reached||SS.step>=600) ? '▶ RESTART' : '▶ START';
+
+  const lbl = SS.running
+    ? (SS.active_algos||[]).map(a=>a.toUpperCase()).join('+') + ' running'
+    : SS.goal_reached ? '✓ GOAL REACHED' : SS.step>=600 ? 'Timeout' : 'Idle';
+  document.getElementById('plbl').textContent = lbl;
+}
+
+// ═══════════════════════════════════════════════════════
+// COST CHART
+// ═══════════════════════════════════════════════════════
+function drawCostChart(){
+  const c=document.getElementById('ch-cost'), cx=c.getContext('2d');
+  const W=c.clientWidth*devicePixelRatio||200, H=48;
+  c.width=W; c.height=H;
+  cx.fillStyle='#0d1117'; cx.fillRect(0,0,W,H);
+  for(const k of (SS.active_algos||['mppi'])){
+    const ag = SS.agents[k]; if(!ag) continue;
+    const h  = ag.cost_history; if(!h||h.length<2) continue;
+    const n=h.length, mx=Math.max(...h), mn=Math.min(...h), rng=mx-mn||1;
+    const col = ALGO_COLORS_CSS[k]||'#aaa';
+    cx.strokeStyle=col; cx.lineWidth=1.5; cx.shadowColor=col; cx.shadowBlur=4;
+    cx.beginPath();
+    for(let i=0;i<n;i++){const px=(i/(n-1))*W,py=H-((h[i]-mn)/rng)*(H-6)-3;i===0?cx.moveTo(px,py):cx.lineTo(px,py);}
+    cx.stroke(); cx.shadowBlur=0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ALGORITHM UI
+// ═══════════════════════════════════════════════════════
+const ALGO_CLS = {mppi:'am', cem:'ac', icem:'ai'};
+let compareMode = false;
+
+function setAlgoTabs(algos){
+  ['mppi','cem','icem'].forEach(a=>{
+    const t=document.getElementById('tab-'+a);
+    t.className='tab'; if(algos.includes(a)) t.classList.add(ALGO_CLS[a]);
+  });
+  document.getElementById('sec-mppi').style.display = algos.includes('mppi')?'':'none';
+  document.getElementById('sec-cem') .style.display = algos.includes('cem') ?'':'none';
+  document.getElementById('sec-icem').style.display = algos.includes('icem')?'':'none';
+  setAlgoInfo(algos);
+  clearTrails();
+}
+
+function sendAlgos(algos){
+  send({type:'set_algos', algos});
+  setAlgoTabs(algos);
+}
+
+['mppi','cem','icem'].forEach(a=>{
+  document.getElementById('tab-'+a).addEventListener('click',()=>{
+    compareMode=false;
+    document.getElementById('btn-compare').textContent='⇄ Compare: OFF';
+    document.getElementById('btn-compare').style.color='';
+    document.getElementById('compare-panel').style.display='none';
+    sendAlgos([a]);
+  });
+});
+
+document.getElementById('btn-compare').addEventListener('click',()=>{
+  compareMode = !compareMode;
+  const btn=document.getElementById('btn-compare');
+  btn.textContent = compareMode?'⇄ Compare: ON':'⇄ Compare: OFF';
+  btn.style.color = compareMode?'#e879f9':'';
+  document.getElementById('compare-panel').style.display = compareMode?'block':'none';
+  if(compareMode){
+    const l=document.getElementById('sel-left').value;
+    const r=document.getElementById('sel-right').value;
+    sendAlgos([l,r]);
+  } else {
+    sendAlgos(['mppi']);
+  }
+});
+document.getElementById('sel-left') .addEventListener('change',()=>{ if(compareMode) sendAlgos([document.getElementById('sel-left').value,document.getElementById('sel-right').value]); });
+document.getElementById('sel-right').addEventListener('change',()=>{ if(compareMode) sendAlgos([document.getElementById('sel-left').value,document.getElementById('sel-right').value]); });
+
+// ═══════════════════════════════════════════════════════
+// DYNAMICS MODEL UI
+// ═══════════════════════════════════════════════════════
+const DYN_DESC = {
+  '2nd':'<strong style="color:var(--text)">2nd-Order</strong><br>state=[q, q̇] (14D)<br>action=q̈ (7D acceleration)<br>q̈ directly integrated',
+  '1st':'<strong style="color:var(--text)">1st-Order</strong><br>state=[q] (7D)<br>action=q̇ (7D velocity)<br>direct velocity command',
+};
+function updateDynUI(m){
+  ['2nd','1st'].forEach(d=>{
+    const b=document.getElementById('dyn-'+d);
+    const on=d===m;
+    b.style.background   = on?'rgba(251,146,60,.15)':'';
+    b.style.color        = on?'#fb923c':'';
+    b.style.borderColor  = on?'#fb923c':'';
+  });
+  document.getElementById('dyn-desc').innerHTML = DYN_DESC[m]||'';
+}
+['2nd','1st'].forEach(d=>{
+  document.getElementById('dyn-'+d).addEventListener('click',()=>{
+    updateDynUI(d);
+    send({type:'set_dyn_model', model:d});
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// PARAM WIRING
+// ═══════════════════════════════════════════════════════
+function gatherParams(){
+  const g=id=>+document.getElementById(id).value;
+  return{
+    H:g('s-H'), K:g('s-K'), lam:g('s-lam'), alpha:g('s-alpha'),
+    sigma:g('s-sig'),
+    cem_N_iter:g('s-cni'), cem_elite_frac:g('s-cef')/100, cem_sigma:g('s-csig'),
+    icem_N_iter:g('s-ini'), icem_elite_frac:g('s-ief')/100, icem_sigma:g('s-isig'),
+    icem_beta_color:g('s-ibc'), icem_elite_reuse:g('s-ier')/100,
+    sg_enabled:sgEnabled, sg_win:g('s-sgw'), sg_order:g('s-sgo'),
+  };
+}
+const SLIDERS=[
+  ['s-H','v-H',v=>v],['s-K','v-K',v=>v],
+  ['s-lam','v-lam',v=>(+v).toFixed(2)],['s-alpha','v-alpha',v=>(+v).toFixed(2)],
+  ['s-sig','v-sig',v=>(+v).toFixed(2)],
+  ['s-cni','v-cni',v=>v],['s-cef','v-cef',v=>v],['s-csig','v-csig',v=>(+v).toFixed(1)],
+  ['s-ini','v-ini',v=>v],['s-ief','v-ief',v=>v],['s-isig','v-isig',v=>(+v).toFixed(1)],
+  ['s-ibc','v-ibc',v=>(+v).toFixed(1)],['s-ier','v-ier',v=>v],
+  ['s-sgw','v-sgw',v=>v],['s-sgo','v-sgo',v=>v],
+  ['s-wjl','v-wjl',v=>v],
+];
+for(const[sid,vid,f] of SLIDERS){
+  const sl=document.getElementById(sid), vl=document.getElementById(vid);
+  if(!sl||!vl) continue;
+  sl.addEventListener('input',()=>{
+    vl.textContent=f(sl.value);
+    if(sid==='s-wjl'){
+      send({type:'set_joint_weights', w_joint_lim:+sl.value});
+    } else {
+      send({type:'params', data:gatherParams()});
+    }
+  });
+}
+
+// SG toggle
+let sgEnabled = false;
+function updateSGUI(){
+  const on = sgEnabled;
+  const btn = document.getElementById('btn-sg');
+  btn.textContent = on ? 'ON' : 'OFF';
+  btn.style.borderColor  = on ? '#67e8f9' : '';
+  btn.style.color        = on ? '#67e8f9' : '';
+  btn.style.background   = on ? 'rgba(103,232,249,.1)' : '';
+  document.getElementById('sg-params').style.opacity      = on ? '1' : '.3';
+  document.getElementById('sg-params').style.pointerEvents = on ? 'auto' : 'none';
+}
+document.getElementById('btn-sg').addEventListener('click',()=>{
+  sgEnabled = !sgEnabled;
+  updateSGUI();
+  send({type:'params', data:gatherParams()});
+});
+
+// Goal sliders & inputs sync
+function syncGoalUI(){
+  const x=+document.getElementById('g-x').value;
+  const y=+document.getElementById('g-y').value;
+  const z=+document.getElementById('g-z').value;
+  document.getElementById('gs-x').value=x;
+  document.getElementById('gs-y').value=y;
+  document.getElementById('gs-z').value=z;
+}
+['x','y','z'].forEach(ax=>{
+  document.getElementById('gs-'+ax).addEventListener('input',e=>{
+    document.getElementById('g-'+ax).value=(+e.target.value).toFixed(2);
+    sendGoal();
+  });
+  document.getElementById('g-'+ax).addEventListener('change',()=>{ syncGoalUI(); sendGoal(); });
+});
+document.getElementById('btn-reset-goal').addEventListener('click',()=>{
+  setGoal(0.5, 0.0, 0.5);
+});
+
+// Start / Reset / Seed
+document.getElementById('btn-start').addEventListener('click',()=>{
+  send({type: SS.running ? 'pause' : 'start'});
+});
+document.getElementById('btn-reset').addEventListener('click',()=>send({type:'reset'}));
+document.getElementById('btn-rnd').addEventListener('click',()=>{
+  const s=Math.floor(Math.random()*9999999);
+  document.getElementById('inp-seed').value=s;
+  send({type:'set_seed',seed:s});
+});
+document.getElementById('btn-seed-apply').addEventListener('click',()=>{
+  send({type:'set_seed',seed:+document.getElementById('inp-seed').value||42});
+});
+
+// ═══════════════════════════════════════════════════════
+// ALGO INFO
+// ═══════════════════════════════════════════════════════
+function setAlgoInfo(algos){
+  const NOTES={
+    mppi:`<strong>MPPI</strong> — Model Predictive Path Integral<br><br>Soft-max weighted update:<span class="fm">w_k = exp(-(J_k − β)/λ)\nU ← Σ w_k v_k</span>`,
+    cem:`<strong>CEM</strong> — Cross-Entropy Method<br><br>Hard elite selection:<span class="fm">elite = argsort(J)[:K_e]\nμ = mean(elite), σ = std(elite)</span>`,
+    icem:`<strong>iCEM</strong> — Improved CEM<br><em>Pinneri et al., CoRL 2020</em><br><br>+ Colored noise (β)<br>+ Elite reuse<br>+ Best-action execution`,
+  };
+  const e=document.getElementById('ainfo');
+  if(algos.length===1){ e.innerHTML=NOTES[algos[0]]||''; return; }
+  e.innerHTML=algos.map(a=>`<span style="color:${ALGO_COLORS_CSS[a]}">${a.toUpperCase()}</span>`).join(' vs ')
+    +'<br><br>'+algos.map(a=>NOTES[a]).join('<hr style="border-color:var(--border);margin:4px 0">');
+}
+
+// ═══════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════
+async function boot(){
+  resize();
+  updateDynUI('2nd');
+  setAlgoTabs(['mppi']);
+  updateCamera();
+  updateSGUI();
+  animate();
+
+  // 1. Load URDF JSON from server
+  try{
+    const resp = await fetch('/api/urdf');
+    const data = await resp.json();
+    if(data.error){
+      console.warn('URDF parse error:', data.error);
+    } else {
+      buildSceneGraph(data);
+      // 2. Load OBJ meshes (async, fallback on error)
+      await loadMeshes(data);
+    }
+  } catch(e){
+    console.warn('Could not load URDF:', e);
+    document.getElementById('load-status').textContent = '⚠ URDF load failed — check server';
+  }
+
+  // 3. Connect WebSocket
+  connect();
+}
+boot();
+</script>
+</body>
+</html>
